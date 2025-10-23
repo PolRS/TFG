@@ -1,26 +1,56 @@
 <template>
   <div>
-    <HomePage :token="token" @logout="handleLogout" />
+    <HomePage
+      :user="user"
+      :carpetes="carpetes"
+      @creaCarpeta="handleCreaCarpeta"
+      @logout="$emit('logout')"
+    />
   </div>
 </template>
 
 <script>
-import HomePage from '@/base_components/Home.vue';
+import axios from "axios"
+import HomePage from '@/base_components/HomePage.vue';
 
 export default {
   name: "HomeMiddleware",
   components: { HomePage },
   props: {
-    token: String
+    user: { type: Object, required: true }
+  },
+  data() {
+    return {
+      carpetes: []
+    }
+  },
+  async mounted() {
+    await this.fetchCarpetes()
   },
   methods: {
-    handleLogout() {
-      // 1️⃣ Esborrem el token
-      localStorage.removeItem("token");
-      sessionStorage.setItem("skipAutoLogin", "true"); // bloqueja login automàtic temporal
+    async fetchCarpetes() {
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/home`, {
+          headers: { Authorization: `Bearer ${this.user.token}` }
+        });
+        this.carpetes = res.data.carpetes || []
+      } catch (err) {
+        console.error("Error carregant carpetes:", err)
+      }
+    },
+    async handleCreaCarpeta(nom) {
+      if (!nom) return
 
-      // 2️⃣ Emetem l'esdeveniment al parent (App.vue)
-      this.$emit("logout");
+      try {
+        const res = await axios.post(
+          `${import.meta.env.VITE_API_URL}/home`,
+          { nom },
+          { headers: { Authorization: `Bearer ${this.user.token}` } }
+        )
+        this.folders.unshift(res.data.carpeta)
+      } catch (err) {
+        console.error("Error creant carpeta:", err)
+      }
     }
   }
 };

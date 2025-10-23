@@ -18,11 +18,8 @@ export async function handleGoogleCallback(req, res) {
     const user = await findOrCreateUser(googleUser);
     const appTokens = generateTokens(user);
 
-    res.json({
-      access_token: appTokens.access,
-      refresh_token: appTokens.refresh,
-      user,
-    });
+    const redirectUrl = `${process.env.FRONTEND_URL}/?token=${appTokens.access}&user=${encodeURIComponent(JSON.stringify(user))}`;
+    res.redirect(redirectUrl);
   } catch (err) {
     console.error(err);
     res.status(401).json({ error: "Error autenticant usuari" });

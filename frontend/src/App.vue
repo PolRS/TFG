@@ -39,34 +39,47 @@ function handleLogout() {
 <template>
   <div id="app">
     <LoginMiddleware
+      v-if="!user"
       @onLoginSuccess="handleLoginSuccess"
       @onLoginError="handleLoginError"
     />
+    <HomeMiddleware
+      v-else
+      :user="user"
+      @logout="handleLogout"
+    />
   </div>
+
 </template>
 
 <script>
+import HomeMiddleware from './components/HomeMiddleware.vue';
 import LoginMiddleware from './components/LoginMiddleware.vue';
 
 export default {
   name: 'App',
   components: {
-    LoginMiddleware
+    LoginMiddleware,
+    HomeMiddleware
   },
   data() {
     return {
-      user: null,
+      user: JSON.parse(localStorage.getItem('user')) || null,
       errorMessage: ''
     }
   },
   methods: {
     handleLoginSuccess(user) {
       this.user = user
+      localStorage.setItem('user', JSON.stringify(user))
       this.errorMessage = ''
-      //Aqui es carrega la vista principal(carpetes)
     },
     handleLoginError(msg) {
       this.errorMessage = msg
+    },
+    handleLogout() {
+      this.user = null
+      localStorage.removeItem('user')
     }
   }
 }

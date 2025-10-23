@@ -77,11 +77,28 @@ export default {
     };
   },
   mounted() {
-    window.gapi.load('auth2', () => {
-      window.gapi.auth2.init({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      })
-    })
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const userStr = params.get("user");
+
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userStr));
+
+        // 💾 Desa al localStorage
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+
+        // 🧹 Neteja la URL
+        window.history.replaceState({}, document.title, "/");
+
+        // 🔥 Notifica al pare (App.vue)
+        this.$emit("onLoginSuccess", user);
+      } catch (err) {
+        console.error("Error processant la resposta de login:", err);
+        this.errorMessage = "Error processant la resposta de Google.";
+      }
+    }
   },
   methods: {
     async handleGoogleLogin() {
@@ -92,7 +109,8 @@ export default {
         console.error('Error iniciant sessió amb Google:', err);
         this.$emit('onLoginError', 'Error iniciant sessió amb Google');
       }
-    },
+    }
+    /*
     async handleOAuthCallback(code) {
       try {
         const response = await axios.post(
@@ -107,7 +125,7 @@ export default {
         console.error('Error validant credencials:', err);
         this.$emit("onLoginError", "Error validant credencials amb Google.");
       }
-    }
+    }*/
   }
 };
 </script>

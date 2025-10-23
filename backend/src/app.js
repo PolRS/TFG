@@ -11,7 +11,7 @@ app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(express.json());
 
 app.use("/auth", authRoutes);
-app.user("/home", requireAuth, carpetesRoutes)
+app.use("/home", requireAuth, carpetesRoutes)
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
