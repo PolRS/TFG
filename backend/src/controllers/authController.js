@@ -1,5 +1,5 @@
 import { getGoogleAuthURL, getTokensFromCode, getGoogleUser } from "../services/googleAuthService.js";
-import { findOrCreateUser } from "../models/User.js";
+import { findOrCreateUser } from "../models/user.js";
 import { generateTokens } from "../utils/tokenUtils.js";
 
 export async function redirectToGoogle(req, res) {
@@ -21,7 +21,7 @@ export async function handleGoogleCallback(req, res) {
     res.json({
       access_token: appTokens.access,
       refresh_token: appTokens.refresh,
-      user
+      user,
     });
   } catch (err) {
     console.error(err);
