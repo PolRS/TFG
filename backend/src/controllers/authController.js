@@ -1,25 +1,30 @@
-import jwt from "jsonwebtoken";
-import { getGoogleTokens, parseIdToken } from "../services/googleAuthService.js";
-import { findOrCreateUser } from "../models/userModel.js";
+import { getGoogleAuthURL, getTokensFromCode, getGoogleUser } from "../services/googleAuthService.js";
+import { findOrCreateUser } from "../models/User.js";
+import { generateTokens } from "../utils/tokenUtils.js";
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const REDIRECT_URI = "http://localhost:3000/auth/google/callback";
-const JWT_SECRET = process.env.JWT_SECRET;
-
-export const redirectToGoogle = (req, res) => {
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=openid email profile`;
+export async function redirectToGoogle(req, res) {
+  const url = getGoogleAuthURL();
   res.redirect(url);
-};
+}
 
-export const googleCallback = async (req, res) => {
-  const code = req.query.code;
-  const tokens = await getGoogleTokens(code, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
-  const userInfo = parseIdToken(tokens.id_token);
 
-  const user = await findOrCreateUser(userInfo.googleId, userInfo.email, userInfo.name);
 
-  const jwtToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+export async function handleGoogleCallback(req, res) {
+  try {
+    const code = req.query.code;
+    const tokens = await getTokensFromCode(code);
+    const googleUser = await getGoogleUser(tokens.access_token);
 
-  res.redirect(`http://localhost:5173/?token=${jwtToken}`);
-};
+    const user = await findOrCreateUser(googleUser);
+    const appTokens = generateTokens(user);
+
+    res.json({
+      access_token: appTokens.access,
+      refresh_token: appTokens.refresh,
+      user
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(401).json({ error: "Error autenticant usuari" });
+  }
+}

@@ -1,3 +1,4 @@
+<!--
 <template>
   <div id="app">
     <LoginMiddleware
@@ -33,3 +34,48 @@ function handleLogout() {
   loginKey.value = Date.now(); // remunta LoginMiddleware
 }
 </script>
+-->
+
+<template>
+  <div id="app">
+    <LoginMiddleware
+      @onLoginSuccess="handleLoginSuccess"
+      @onLoginError="handleLoginError"
+    />
+  </div>
+</template>
+
+<script>
+import LoginMiddleware from './components/LoginMiddleware.vue';
+
+export default {
+  name: 'App',
+  components: {
+    LoginMiddleware
+  },
+  data() {
+    return {
+      user: null,
+      errorMessage: ''
+    }
+  },
+  methods: {
+    handleLoginSuccess(user) {
+      this.user = user
+      this.errorMessage = ''
+      //Aqui es carrega la vista principal(carpetes)
+    },
+    handleLoginError(msg) {
+      this.errorMessage = msg
+    }
+  }
+}
+</script>
+
+<style scoped>
+#error-message {
+  color: #ef4444;
+  margin-top: 1rem;
+  text-align: center;
+}
+</style>
