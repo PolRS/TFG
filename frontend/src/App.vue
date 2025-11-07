@@ -47,12 +47,14 @@ function handleLogout() {
       v-else
       :user="user"
       @logout="handleLogout"
+      @obreCarpeta="handleObreCarpeta"
     />
   </div>
 
 </template>
 
 <script>
+import axios from "axios"
 import HomeMiddleware from './components/HomeMiddleware.vue';
 import LoginMiddleware from './components/LoginMiddleware.vue';
 
@@ -68,6 +70,19 @@ export default {
       errorMessage: ''
     }
   },
+  async mounted() {
+    const token = localStorage.getItem("access_token")
+    if (!token) return
+
+    try {
+      await axios.get(`${import.meta.env.VITE_API_URL}/auth/verify`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    } catch (err) {
+      console.warn("Token invalid o expirat:", err.response?.data)
+      this.handleLogout()
+    }
+  },
   methods: {
     handleLoginSuccess(user) {
       this.user = user
@@ -80,6 +95,7 @@ export default {
     handleLogout() {
       this.user = null
       localStorage.removeItem('user')
+      localStorage.removeItem('access_token')
     }
   }
 }

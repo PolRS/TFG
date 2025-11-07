@@ -4,6 +4,7 @@
       :user="user"
       :carpetes="carpetes"
       @creaCarpeta="handleCreaCarpeta"
+      @obreCarpeta="obreCarpeta"
       @logout="$emit('logout')"
     />
   </div>
@@ -21,17 +22,22 @@ export default {
   },
   data() {
     return {
-      carpetes: []
+      carpetes: [],
+      accessToken: localStorage.getItem("access_token") || ""
     }
   },
   async mounted() {
     await this.fetchCarpetes()
   },
   methods: {
+    getAuthHeader() {
+      const accessToken = localStorage.getItem("access_token")
+      return { Authorization: `Bearer ${accessToken}` }
+    },
     async fetchCarpetes() {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL}/home`, {
-          headers: { Authorization: `Bearer ${this.user.token}` }
+          headers: { Authorization: `Bearer ${this.accessToken}` }
         });
         this.carpetes = res.data.carpetes || []
       } catch (err) {
@@ -45,12 +51,15 @@ export default {
         const res = await axios.post(
           `${import.meta.env.VITE_API_URL}/home`,
           { nom },
-          { headers: { Authorization: `Bearer ${this.user.token}` } }
+          { headers: this.getAuthHeader() }
         )
-        this.folders.unshift(res.data.carpeta)
+        this.carpetes.unshift(res.data.carpeta)
       } catch (err) {
         console.error("Error creant carpeta:", err)
       }
+    },
+    obreCarpeta(carpeta) {
+      this.$emit("obreCarpeta", carpeta)
     }
   }
 };

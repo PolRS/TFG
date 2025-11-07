@@ -65,7 +65,7 @@ export default {
 </template>
 
 <script>
-import axios from "axios";
+//import axios from "axios";
 import LoginPage from "@/base_components/LoginPage.vue";
 
 export default {
@@ -78,15 +78,16 @@ export default {
   },
   mounted() {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const accessToken = params.get("access_token");
+    console.log(accessToken)
     const userStr = params.get("user");
 
-    if (token && userStr) {
+    if (accessToken && userStr) {
       try {
         const user = JSON.parse(decodeURIComponent(userStr));
 
         // 💾 Desa al localStorage
-        localStorage.setItem("token", token);
+        localStorage.setItem("access_token", accessToken);
         localStorage.setItem("user", JSON.stringify(user));
 
         // 🧹 Neteja la URL
