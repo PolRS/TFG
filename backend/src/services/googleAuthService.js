@@ -6,7 +6,7 @@ import { google } from 'googleapis'
 
 const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 
-export function getGoogleAuthURL() {
+/*export function getGoogleAuthURL() {
   const options = {
     redirect_uri: process.env.GOOGLE_REDIRECT_URI,
     client_id: process.env.GOOGLE_CLIENT_ID,
@@ -21,7 +21,7 @@ export function getGoogleAuthURL() {
 
   const url = `${rootUrl}?${new URLSearchParams(options).toString()}`;
   return url;
-}
+}*/
 
 export async function getTokensFromCode(code) {
   const res = await axios.post("https://oauth2.googleapis.com/token", 

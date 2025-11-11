@@ -1,41 +1,3 @@
-<!--
-<template>
-  <div id="app">
-    <LoginMiddleware
-      v-if="!token"
-      :key="loginKey"
-      @loginSuccess="handleLoginSuccess"
-    />
-    <HomeMiddleware
-      v-else
-      :token="token"
-      @logout="handleLogout"
-    />
-  </div>
-</template>
-
-<script setup>
-import { ref } from 'vue';
-import LoginMiddleware from '@/components/LoginMiddleware.vue';
-import HomeMiddleware from '@/components/HomeMiddleware.vue';
-
-const token = ref(localStorage.getItem("token") || null);
-const loginKey = ref(Date.now()); // permet remuntar LoginMiddleware
-
-function handleLoginSuccess(jwtToken) {
-  token.value = jwtToken;
-  localStorage.setItem("token", jwtToken);
-  sessionStorage.removeItem("skipAutoLogin"); // permet login automàtic
-}
-
-function handleLogout() {
-  token.value = null;
-  sessionStorage.setItem("skipAutoLogin", "true"); // bloqueja login automàtic temporal
-  loginKey.value = Date.now(); // remunta LoginMiddleware
-}
-</script>
--->
-
 <template>
   <div id="app">
     <LoginMiddleware
@@ -43,6 +5,7 @@ function handleLogout() {
       @onLoginSuccess="handleLoginSuccess"
       @onLoginError="handleLoginError"
     />
+
     <HomeMiddleware
       v-else
       :user="user"
@@ -50,61 +13,71 @@ function handleLogout() {
       @obreCarpeta="handleObreCarpeta"
     />
   </div>
-
 </template>
 
 <script>
-import axios from "axios"
-import HomeMiddleware from './components/HomeMiddleware.vue';
-import LoginMiddleware from './components/LoginMiddleware.vue';
+import api from "@/api.js";
+import HomeMiddleware from "./components/HomeMiddleware.vue";
+import LoginMiddleware from "./components/LoginMiddleware.vue";
 
 export default {
-  name: 'App',
-  components: {
-    LoginMiddleware,
-    HomeMiddleware
-  },
+  name: "App",
+  components: { LoginMiddleware, HomeMiddleware },
   data() {
     return {
-      user: JSON.parse(localStorage.getItem('user')) || null,
-      errorMessage: ''
-    }
+      user: JSON.parse(localStorage.getItem("user")) || null,
+      errorMessage: "",
+    };
   },
   async mounted() {
-    const token = localStorage.getItem("access_token")
-    if (!token) return
-
-    try {
-      await axios.get(`${import.meta.env.VITE_API_URL}/auth/verify`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-    } catch (err) {
-      console.warn("Token invalid o expirat:", err.response?.data)
-      this.handleLogout()
-    }
+    console.log("🟢 [App.vue] montat");
+    await this.checkSession();
   },
   methods: {
-    handleLoginSuccess(user) {
-      this.user = user
-      localStorage.setItem('user', JSON.stringify(user))
-      this.errorMessage = ''
+    async checkSession() {
+      try {
+        console.log("🔍 [App.vue] comprovant token...");
+        const res = await api.get("/auth/verify");
+        if (res.data.valid) {
+          console.log("✅ [App.vue] token vàlid");
+          const userRes = await api.get("/auth/user");
+          this.user = userRes.data.user;
+          localStorage.setItem("user", JSON.stringify(userRes.data.user));
+        } else {
+          this.handleLogout(false);
+        }
+      } catch {
+        console.warn("❌ Cap sessió activa o token invàlid.");
+        this.handleLogout(false);
+      }
     },
-    handleLoginError(msg) {
-      this.errorMessage = msg
-    },
-    handleLogout() {
-      this.user = null
-      localStorage.removeItem('user')
-      localStorage.removeItem('access_token')
-    }
-  }
-}
-</script>
 
-<style scoped>
-#error-message {
-  color: #ef4444;
-  margin-top: 1rem;
-  text-align: center;
-}
-</style>
+    handleLoginSuccess(user) {
+      console.log("✅ [App.vue] loginSuccess:", user);
+      this.user = user;
+      localStorage.setItem("user", JSON.stringify(user));
+      this.errorMessage = "";
+    },
+
+    handleLoginError(msg) {
+      this.errorMessage = msg;
+    },
+
+    handleObreCarpeta(carpeta) {
+      console.log("📁 Obrint carpeta:", carpeta);
+    },
+
+    async handleLogout(server = true) {
+      console.log("🚪 [App.vue] logout cridat");
+      try {
+        if (server) await api.post("/auth/logout"); // elimina cookies al backend
+      } catch (err) {
+        console.warn("Error tancant sessió:", err);
+      } finally {
+        localStorage.removeItem("user");
+        this.user = null;
+      }
+    },
+  },
+};
+</script>

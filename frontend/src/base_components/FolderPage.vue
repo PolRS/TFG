@@ -1,17 +1,27 @@
 <template>
   <div class="folder-view">
-    <!-- Panell esquerra -->
     <aside class="sidebar">
+      <h2>{{ carpeta.nom }}</h2>
+
       <h3>Documents</h3>
       <ul>
-        <li v-for="doc in documents" :key="doc.id" @click="$emit('openDocument', doc)">
-          {{ doc.nom }}
+        <li v-for="doc in documents" :key="doc.id" class="document-item">
+          <span class="doc-name" @click="$emit('openDocument', doc)">
+            {{ doc.nom }}
+          </span>
+          <button class="delete-btn" @click="$emit('eliminaDocument', doc.id)">🗑️</button>
         </li>
       </ul>
-      <button @click="$emit('addDocument')">+ Afegeix document</button>
+
+      <input
+        ref="fileInput"
+        type="file"
+        style="display:none"
+        @change="$emit('uploadFile', $event)"
+      />
+      <button class="add-btn" @click="$refs.fileInput.click()">+ Pujar document</button>
     </aside>
 
-    <!-- Cos central -->
     <main class="chat-panel">
       <div class="chat-placeholder">
         <h3>Xat amb IA</h3>
@@ -19,7 +29,6 @@
       </div>
     </main>
 
-    <!-- Panell dret -->
     <aside class="options-panel">
       <h3>Eines</h3>
       <ul>
@@ -54,15 +63,42 @@ export default {
   padding: 1rem;
 }
 
-.chat-panel {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+h2 {
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
 }
 
-.options-panel {
-  background: #f8fafc;
-  border-left: 1px solid #e2e8f0;
-  padding: 1rem;
+.document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #e2e8f0;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.doc-name {
+  cursor: pointer;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: 0.2s;
+}
+.delete-btn:hover {
+  color: #ef4444;
+}
+.add-btn {
+  margin-top: 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
 }
 </style>

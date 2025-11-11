@@ -1,13 +1,12 @@
+// src/middleware/authMiddleware.js
 import jwt from "jsonwebtoken";
 
 export function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
-  console.log("token rebut:", token)
-
+  const token = req.cookies.access_token; // ✅ ara el token ve d'una cookie
+  
   if (!token) {
-    return res.status(401).json({ error: "Token d'autenticació requerit" });
+    console.warn("❌ No s'ha trobat cap cookie d'autenticació");
+    return res.status(401).json({ error: "No autenticat" });
   }
 
   try {
@@ -15,7 +14,12 @@ export function requireAuth(req, res, next) {
     req.user = { id: payload.userId };
     next();
   } catch (err) {
-    console.error("Error verificant token", err);
-    res.status(401).json({ error: "Token d'autenticació invàlid" });
+    console.error("❌ Error verificant token:", err.name);
+    return res.status(401).json({
+      error:
+        err.name === "TokenExpiredError"
+          ? "Token expirat"
+          : "Token d'autenticació invàlid",
+    });
   }
 }

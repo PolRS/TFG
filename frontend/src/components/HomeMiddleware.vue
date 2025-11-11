@@ -11,8 +11,8 @@
 </template>
 
 <script>
-import axios from "axios"
-import HomePage from '@/base_components/HomePage.vue';
+import api from "@/api.js";
+import HomePage from "@/base_components/HomePage.vue";
 
 export default {
   name: "HomeMiddleware",
@@ -22,44 +22,37 @@ export default {
   },
   data() {
     return {
-      carpetes: [],
-      accessToken: localStorage.getItem("access_token") || ""
-    }
+      carpetes: []
+    };
   },
   async mounted() {
-    await this.fetchCarpetes()
+    console.log("🔴 [HomeMiddleware] montat");
+    await this.fetchCarpetes();
   },
   methods: {
-    getAuthHeader() {
-      const accessToken = localStorage.getItem("access_token")
-      return { Authorization: `Bearer ${accessToken}` }
-    },
     async fetchCarpetes() {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/home`, {
-          headers: { Authorization: `Bearer ${this.accessToken}` }
-        });
-        this.carpetes = res.data.carpetes || []
+        const res = await api.get("/home"); // usa api.js que ja afegeix el token
+        this.carpetes = res.data.carpetes || [];
       } catch (err) {
-        console.error("Error carregant carpetes:", err)
+        console.error("Error carregant carpetes:", err);
       }
     },
-    async handleCreaCarpeta(nom) {
-      if (!nom) return
 
+    // 🔹 Crear una carpeta nova
+    async handleCreaCarpeta(nom) {
+      if (!nom) return;
       try {
-        const res = await axios.post(
-          `${import.meta.env.VITE_API_URL}/home`,
-          { nom },
-          { headers: this.getAuthHeader() }
-        )
-        this.carpetes.unshift(res.data.carpeta)
+        const res = await api.post("/home", { nom });
+        this.carpetes.unshift(res.data.carpeta);
       } catch (err) {
-        console.error("Error creant carpeta:", err)
+        console.error("Error creant carpeta:", err);
       }
     },
+
+    // 🔹 Obrir carpeta
     obreCarpeta(carpeta) {
-      this.$emit("obreCarpeta", carpeta)
+      this.$emit("obreCarpeta", carpeta);
     }
   }
 };
