@@ -19,7 +19,6 @@ export default {
   },
 
   async mounted() {
-    console.log("🟡 [LoginMiddleware] montat");
     try {
       //Comprovem si hi ha sessió vàlida (cookie)
       const res = await api.get("/auth/verify");
@@ -30,7 +29,7 @@ export default {
         return
       }
     } catch(err) {
-      console.log("⚠️ [LoginMiddleware] error verificant sessió:", err.message)
+      console.log("[LoginMiddleware] error verificant sessió:", err.message)
       // No fem res, només mostrem el botó de login
     }
   },
@@ -38,8 +37,7 @@ export default {
   methods: {
     async handleGoogleLogin() {
       try {
-        console.log("🔵 [LoginMiddleware] iniciant flux OAuth...");
-        // 🔗 Redirigeix al backend (que alhora redirigeix a Google)
+        //Redirigeix al backend (que alhora redirigeix a Google)
         const googleAuthUrl = `${import.meta.env.VITE_API_URL}/auth/google`;
         window.location.href = googleAuthUrl;
       } catch (err) {

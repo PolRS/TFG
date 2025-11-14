@@ -1,7 +1,10 @@
 <template>
   <FolderPage
+    :user="user"
     :carpeta="carpeta"
     :documents="documents"
+    @logout="$emit('logout')"
+    @tancaCarpeta="$emit('tancaCarpeta')"
     @uploadFile="handleUploadFile"
     @eliminaDocument="handleEliminaDocument"
   />
@@ -27,7 +30,6 @@ export default {
   methods: {
     async fetchDocuments() {
       try {
-        // 🟢 ara no cal posar headers, api ja afegeix el token automàticament
         const res = await api.get(`/carpeta/${this.carpeta.id}`);
         this.documents = res.data.documents || [];
       } catch (err) {

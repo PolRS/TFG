@@ -5,7 +5,7 @@ export function requireAuth(req, res, next) {
   const token = req.cookies.access_token; // ✅ ara el token ve d'una cookie
   
   if (!token) {
-    console.warn("❌ No s'ha trobat cap cookie d'autenticació");
+    console.warn("No s'ha trobat cap cookie d'autenticació");
     return res.status(401).json({ error: "No autenticat" });
   }
 
@@ -14,7 +14,7 @@ export function requireAuth(req, res, next) {
     req.user = { id: payload.userId };
     next();
   } catch (err) {
-    console.error("❌ Error verificant token:", err.name);
+    console.error("Error verificant token:", err.name);
     return res.status(401).json({
       error:
         err.name === "TokenExpiredError"

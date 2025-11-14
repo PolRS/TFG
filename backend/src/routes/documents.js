@@ -1,21 +1,37 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { llistaDocuments, afegeixDocument, eliminaDocument } from "../controllers/documentsController.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// 📁 Configuració de multer
+// Ruta absoluta correcta
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadPath = path.join(__dirname, "..", "uploads", "documents");
+
+// Crear carpeta si no existeix
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+  console.log("Carpeta creada:", uploadPath);
+}
+
+console.log("Multer desarà fitxers a:", uploadPath);
+
+// Multer configuració
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/documents/");
+  destination(req, file, cb) {
+    cb(null, uploadPath);
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+  filename(req, file, cb) {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, unique + path.extname(file.originalname));
   }
 });
+
 const upload = multer({ storage });
 
 router.use(requireAuth);

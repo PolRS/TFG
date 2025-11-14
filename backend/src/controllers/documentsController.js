@@ -9,26 +9,27 @@ export async function llistaDocuments(req, res) {
     const documents = await documentsService.getDocumentsByCarpeta(userId, carpetaId);
     res.json({ documents });
   } catch (err) {
-    console.error("❌ Error recuperant documents:", err);
+    console.error("Error recuperant documents:", err);
     res.status(500).json({ error: "Error recuperant documents" });
   }
 }
 
 export async function afegeixDocument(req, res) {
   try {
-    const userId = req.user.id;
     const { carpetaId } = req.params;
 
-    if (!req.file) {
-      return res.status(400).json({ error: "Cal pujar un fitxer" });
+    if (!carpetaId) {
+      return res.status(400).json({ error: "carpetaId requerit" });
     }
 
-    const nom = req.file.originalname;
-    const tipus = req.file.mimetype;
-    const pathFitxer = req.file.path;
+    if (!req.file) {
+      return res.status(400).json({ error: "Cap fitxer rebut" });
+    }
 
-    const document = await documentsService.creaDocument(userId, carpetaId, nom, tipus, pathFitxer);
+    const document = await documentsService.creaDocument(carpetaId, req.file);
+
     res.status(201).json({ document });
+
   } catch (err) {
     console.error("❌ Error pujant document:", err);
     res.status(500).json({ error: "Error pujant document" });
@@ -47,13 +48,14 @@ export async function eliminaDocument(req, res) {
     // Esborrem el fitxer físic
     if (deleted.path_fitxer) {
       fs.unlink(deleted.path_fitxer, err => {
-        if (err) console.warn("⚠️ No s'ha pogut eliminar el fitxer:", err);
+        if (err) 
+          console.warn("No s'ha pogut eliminar el fitxer:", err);
       });
     }
 
     res.json({ missatge: "Document eliminat correctament" });
   } catch (err) {
-    console.error("❌ Error eliminant document:", err);
+    console.error("Error eliminant document:", err);
     res.status(500).json({ error: "Error eliminant document" });
   }
 }

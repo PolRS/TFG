@@ -36,3 +36,19 @@ export async function afegeixCarpeta(req, res) {
         res.status(500).json({ error: 'Error creant carpeta' })
     }
 }
+
+export async function eliminaCarpeta(req, res) {
+  try {
+    const userId = req.user.id;
+    const { carpetaId } = req.params;
+
+    const result = await carpetaService.eliminaCarpeta(userId, carpetaId);
+
+    if (!result) return res.status(404).json({ error: "Carpeta no trobada" });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error eliminant carpeta" });
+  }
+}

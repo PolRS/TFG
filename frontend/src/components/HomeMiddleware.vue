@@ -5,6 +5,7 @@
       :carpetes="carpetes"
       @creaCarpeta="handleCreaCarpeta"
       @obreCarpeta="obreCarpeta"
+      @eliminaCarpeta="eliminaCarpeta"
       @logout="$emit('logout')"
     />
   </div>
@@ -26,7 +27,6 @@ export default {
     };
   },
   async mounted() {
-    console.log("🔴 [HomeMiddleware] montat");
     await this.fetchCarpetes();
   },
   methods: {
@@ -39,7 +39,6 @@ export default {
       }
     },
 
-    // 🔹 Crear una carpeta nova
     async handleCreaCarpeta(nom) {
       if (!nom) return;
       try {
@@ -50,9 +49,19 @@ export default {
       }
     },
 
-    // 🔹 Obrir carpeta
     obreCarpeta(carpeta) {
       this.$emit("obreCarpeta", carpeta);
+    },
+
+    async eliminaCarpeta(carpeta) {
+      if (!confirm(`Vols eliminar la carpeta "${carpeta.nom}"?`)) return;
+
+      try {
+        await api.delete(`/home/${carpeta.id}`);
+        this.carpetes = this.carpetes.filter(c => c.id !== carpeta.id);
+      } catch (err) {
+        console.error("Error eliminant carpeta:", err);
+      }
     }
   }
 };

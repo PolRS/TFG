@@ -21,9 +21,18 @@
           v-for="carpeta in carpetes"
           :key="carpeta.id"
           class="folder-card"
-          @click="$emit('obreCarpeta', carpeta)"
         >
-          {{ carpeta.nom }}
+          <span class="folder-name" @click="$emit('obreCarpeta', carpeta)">
+            {{ carpeta.nom }}
+          </span>
+
+        <!-- 🔴 Botó eliminar carpeta -->
+        <button
+          class="delete-folder-btn"
+          @click.stop="$emit('eliminaCarpeta', carpeta)"
+        >
+          🗑️
+        </button>
         </div>
       </div>
     </main>
@@ -120,11 +129,22 @@ export default {
 }
 
 .folder-card {
-  background: #f1f5f9;
-  padding: 1rem;
-  border-radius: 10px;
-  width: 200px;
-  text-align: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
+
+.delete-folder-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #dc2626;
+}
+
+.delete-folder-btn:hover {
+  color: #ef4444;
+}
+
 </style>
