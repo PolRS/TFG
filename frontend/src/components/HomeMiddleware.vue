@@ -32,7 +32,7 @@ export default {
   methods: {
     async fetchCarpetes() {
       try {
-        const res = await api.get("/home"); // usa api.js que ja afegeix el token
+        const res = await api.get("/home"); 
         this.carpetes = res.data.carpetes || [];
       } catch (err) {
         console.error("Error carregant carpetes:", err);

@@ -23,7 +23,7 @@ export default {
       //Comprovem si hi ha sessió vàlida (cookie)
       const res = await api.get("/auth/verify");
       if (res.data.valid) {
-        console.log("✅ [LoginMiddleware] sessió vàlida, carregant usuari...")
+        console.log("[LoginMiddleware] sessió vàlida, carregant usuari...")
         const userRes = await api.get("/auth/user");
         this.$emit("onLoginSuccess", userRes.data.user);
         return
@@ -37,7 +37,6 @@ export default {
   methods: {
     async handleGoogleLogin() {
       try {
-        //Redirigeix al backend (que alhora redirigeix a Google)
         const googleAuthUrl = `${import.meta.env.VITE_API_URL}/auth/google`;
         window.location.href = googleAuthUrl;
       } catch (err) {

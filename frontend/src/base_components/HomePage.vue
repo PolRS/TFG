@@ -26,7 +26,7 @@
             {{ carpeta.nom }}
           </span>
 
-        <!-- 🔴 Botó eliminar carpeta -->
+        <!-- Botó eliminar carpeta -->
         <button
           class="delete-folder-btn"
           @click.stop="$emit('eliminaCarpeta', carpeta)"

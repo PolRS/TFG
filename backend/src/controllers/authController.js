@@ -50,16 +50,15 @@ export async function handleGoogleCallback(req, res) {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // 🔥 Només redirigeix al frontend base (App.vue s’encarrega)
     res.redirect(`${process.env.FRONTEND_URL}/`);
   } catch (err) {
-    console.error("❌ Error autenticant amb Google:", err);
+    console.error("Error autenticant amb Google:", err);
     res.status(401).send("Error autenticant usuari amb Google.");
   }
 }
 
 /**
- * ✅ Endpoint per verificar sessió (el frontend pot fer /auth/verify)
+ * Endpoint per verificar sessió (el frontend pot fer /auth/verify)
  */
 export function verifyToken(req, res) {
   const token = req.cookies.access_token;
@@ -82,15 +81,12 @@ export function verifyToken(req, res) {
  */
 export async function getUser(req, res) {
   try {
-    // 🔒 Llegim el token de la cookie
     const token = req.cookies.access_token;
     if (!token) return res.status(401).json({ error: "No autenticat" });
 
-    // ✅ Verifiquem el token
     const decoded = jwt.verify(token, process.env.JWT_SECRET_ACCESS);
     const userId = decoded.userId;
 
-    // 🗄️ Recuperem les dades de l'usuari de la BD
     const { rows } = await pool.query(
       "SELECT id, google_id, nom, email, avatar_url FROM usuaris WHERE id = $1",
       [userId]
@@ -100,7 +96,6 @@ export async function getUser(req, res) {
       return res.status(404).json({ error: "Usuari no trobat" });
     }
 
-    // 🔁 Retornem les dades actualitzades
     res.json({ user: rows[0] });
   } catch (err) {
     console.error("Error obtenint usuari:", err);

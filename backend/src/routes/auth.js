@@ -10,7 +10,7 @@ import {
 const router = express.Router();
 
 router.get("/google", redirectToGoogle);
-router.get("/google/callback", handleGoogleCallback); // 👈 POST
+router.get("/google/callback", handleGoogleCallback); 
 router.get("/verify", verifyToken)
 router.get("/user", getUser); 
 router.post("/logout", logout);

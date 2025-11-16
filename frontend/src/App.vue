@@ -76,7 +76,7 @@ export default {
     async handleLogout(server = true) {
       try {
         if (server)
-          await api.post("/auth/logout"); // elimina cookies al backend
+          await api.post("/auth/logout");
       } catch (err) {
         console.warn("Error tancant sessió:", err);
       } finally {

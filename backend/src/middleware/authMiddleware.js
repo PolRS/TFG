@@ -2,7 +2,7 @@
 import jwt from "jsonwebtoken";
 
 export function requireAuth(req, res, next) {
-  const token = req.cookies.access_token; // ✅ ara el token ve d'una cookie
+  const token = req.cookies.access_token; 
   
   if (!token) {
     console.warn("No s'ha trobat cap cookie d'autenticació");

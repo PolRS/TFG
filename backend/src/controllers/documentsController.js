@@ -31,7 +31,7 @@ export async function afegeixDocument(req, res) {
     res.status(201).json({ document });
 
   } catch (err) {
-    console.error("❌ Error pujant document:", err);
+    console.error("Error pujant document:", err);
     res.status(500).json({ error: "Error pujant document" });
   }
 }

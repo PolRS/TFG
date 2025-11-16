@@ -1,7 +1,7 @@
 <template>
   <div class="folder">
 
-    <!-- 🔵 TOPBAR (igual que HomePage) -->
+    <!-- TOPBAR (igual que HomePage) -->
     <header class="topbar">
       <div class="user-info">
         <img :src="user.avatar_url" alt="Profile" class="avatar" />
@@ -14,7 +14,7 @@
       </div>
     </header>
 
-    <!-- 🔵 COS PRINCIPAL -->
+    <!-- COS PRINCIPAL -->
     <div class="folder-view">
       <aside class="sidebar">
         <h2>{{ carpeta.nom }}</h2>
