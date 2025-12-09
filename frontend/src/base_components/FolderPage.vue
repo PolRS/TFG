@@ -47,10 +47,15 @@
       </aside>
 
       <main class="chat-panel">
-        <div class="chat-placeholder">
-          <h3>Xat amb IA</h3>
-          <p>Aquí es mostrarà la conversa i les respostes sobre els documents.</p>
+        <div v-if="!selectedDocument" class="chat-placeholder">
+          <h3>Xat</h3>
+          <p>Selecciona un document per començar el Xat</p>
         </div>
+        <DocumentChat
+          v-else
+          :document-id="selectedDocument.id"
+          :document-title="selectedDocument.nom"
+        />
       </main>
 
       <aside class="options-panel">
@@ -67,12 +72,17 @@
 </template>
 
 <script>
+import DocumentChat from "@/components/DocumentChat.vue"
 export default {
   name: "FolderPage",
+  components: {
+    DocumentChat
+  },
   props: {
     user: { type: Object, required: true },
     carpeta: { type: Object, required: true },
-    documents: { type: Array, required: true }
+    documents: { type: Array, required: true },
+    selectedDocument: { type: Object, required: false }
   }
 };
 </script>
@@ -179,5 +189,28 @@ export default {
   padding: 0.6rem 1rem;
   border-radius: 6px;
   cursor: pointer;
+}
+
+/* 🔵 Chat panel */
+.chat-panel {
+  padding: 1rem;
+  border-right: 1px solid #e2e8f0;
+}
+
+.chat-placeholder {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* 🔵 Options panel */
+.options-panel {
+  background: #f9fafb;
+  padding: 1rem;
+  border-left: 1px solid #e2e8f0;
 }
 </style>

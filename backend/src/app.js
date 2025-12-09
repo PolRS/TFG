@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import carpetesRoutes from "./routes/home.js"
 import documentsRoutes from "./routes/documents.js"
+import chatRouter from "./routes/chat.js";
 import cookieParser from "cookie-parser";
 import { requireAuth } from "./middleware/authMiddleware.js";
 
@@ -17,6 +18,7 @@ app.use("/auth", authRoutes);
 app.use("/home", requireAuth, carpetesRoutes)
 app.use("/carpeta", requireAuth, documentsRoutes)
 app.use("/uploads", express.static("uploads"));
+app.use("/api/chat", chatRouter);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

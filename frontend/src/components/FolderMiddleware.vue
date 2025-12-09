@@ -3,10 +3,12 @@
     :user="user"
     :carpeta="carpeta"
     :documents="documents"
+    :selectedDocument="selectedDocument"
     @logout="$emit('logout')"
     @tancaCarpeta="$emit('tancaCarpeta')"
     @uploadFile="handleUploadFile"
     @eliminaDocument="handleEliminaDocument"
+    @openDocument="handleOpenDocument"
   />
 </template>
 
@@ -22,7 +24,10 @@ export default {
     carpeta: { type: Object, required: true }
   },
   data() {
-    return { documents: [] };
+    return {
+      documents: [],
+      selectedDocument: null
+    };
   },
   async mounted() {
     await this.fetchDocuments();
@@ -63,6 +68,10 @@ export default {
       } catch (err) {
         console.error("Error eliminant document:", err);
       }
+    },
+
+    handleOpenDocument(doc) {
+      this.selectedDocument = doc
     }
   }
 };
