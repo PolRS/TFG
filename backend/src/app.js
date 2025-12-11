@@ -18,7 +18,7 @@ app.use("/auth", authRoutes);
 app.use("/home", requireAuth, carpetesRoutes)
 app.use("/carpeta", requireAuth, documentsRoutes)
 app.use("/uploads", express.static("uploads"));
-app.use("/api/chat", chatRouter);
+app.use("/chat", chatRouter);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
