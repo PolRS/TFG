@@ -2,12 +2,7 @@
 import pool from "../db.js";
 import fs from "fs/promises";
 import mammoth from "mammoth";
-import { createRequire } from "module";
-
-// Necessari per carregar mòduls CommonJS (com pdf-parse) des d'ESM
-const require = createRequire(import.meta.url);
-const pdfParseModule = require("pdf-parse");
-const pdfParse = pdfParseModule?.default ?? pdfParseModule;
+import pdfParse from "pdf-parse";
 
 /**
  * Extreu text del fitxer segons el tipus (mimetype).
