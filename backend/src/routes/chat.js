@@ -1,8 +1,9 @@
 import express from "express";
-import { consultaDocument } from "../controllers/chatController.js";
+import { getHistory, consultaDocument } from "../controllers/chatController.js";
 
 const router = express.Router();
 
+router.get("/history", getHistory);
 router.post("/query", consultaDocument);
 
 export default router;

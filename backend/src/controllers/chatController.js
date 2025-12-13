@@ -1,44 +1,55 @@
 // backend/src/controllers/chatController.js
 import { callLLM } from "../services/llmService.js";
 import { getDocumentById } from "../services/documentsService.js";
+import { getMessagesByCarpeta, addMessage } from "../services/chatServices.js";
+import { getDocumentInCarpeta } from "../services/documentsService.js";
+
+export async function getHistory(req, res) {
+  try {
+    const { carpetaId } = req.query;
+
+    if (!carpetaId) {
+      return res.status(400).json({ error: "carpetaId és obligatori" });
+    }
+
+    const messages = await getMessagesByCarpeta(carpetaId, 200);
+    return res.json({ messages });
+  } catch (err) {
+    console.error("Error a getHistory:", err);
+    return res.status(500).json({ error: "Error intern del servidor" });
+  }
+}
 
 export async function consultaDocument(req, res) {
   try {
-    // Si encara no tens auth muntada, pots comentar aquestes dues línies
-    // const userId = req.user?.id;
-    // if (!userId) return res.status(401).json({ error: "Usuari no autenticat" });
+    const { carpetaId, documentId, message } = req.body;
 
-    const { documentId, message } = req.body;
-
-    if (!documentId || !message) {
+    if (!carpetaId || !documentId || !message) {
       return res
         .status(400)
-        .json({ error: "documentId i message són obligatoris" });
+        .json({ error: "carpetaId, documentId i message són obligatoris" });
     }
 
-    // 1) Recuperar document
-    const doc = await getDocumentById(documentId);
+    // 1) Agafar document però assegurant que és dins la carpeta
+    const doc = await getDocumentInCarpeta(carpetaId, documentId);
     if (!doc) {
-      return res.status(404).json({ error: "Document no trobat" });
+      return res.status(404).json({ error: "Document no trobat dins la carpeta" });
     }
 
-    if (!doc.content_text || !doc.content_text.trim()) {
-      return res
-        .status(400)
-        .json({ error: "Aquest document no té text associat (content_text buit)" });
+    if (!doc.content_text?.trim()) {
+      return res.status(400).json({ error: "Aquest document no té text associat" });
     }
 
-    // 2) Limitar longitud del text
-    const MAX_LENGTH = 8000; // ajustable
+    // 2) Construir prompt (sense embeddings)
+    const MAX_LENGTH = 8000;
     const truncatedText = doc.content_text.slice(0, MAX_LENGTH);
 
-    // 3) Construir prompt
     const prompt = `
-T'he proporcionat el contingut d'un document. Respon ÚNICAMENT basant-te en aquest document.
+Respon ÚNICAMENT basant-te en el document proporcionat.
 
-NOM DEL DOCUMENT: ${doc.nom}
+DOCUMENT: ${doc.nom}
 
-DOCUMENT:
+CONTINGUT:
 """
 ${truncatedText}
 """
@@ -49,20 +60,30 @@ PREGUNTA:
 Respon de forma clara i concisa, en el mateix idioma que la pregunta.
     `.trim();
 
-    // 4) Cridar Mistral (mistral-small-latest)
+    // 3) Cridar LLM
     const answer = await callLLM(prompt);
 
-    // 5) Retornar la resposta
+    // 4) Guardar historial per carpeta
+    await addMessage({
+      carpetaId,
+      role: "user",
+      content: message,
+      sources: [] // missatge usuari no té fonts
+    });
+
+    // 5) Fonts: en aquesta fase, la font és el document seleccionat
+    const sources = [{ documentId: doc.id, nom: doc.nom }];
+
+    const assistantMsg = await addMessage({
+      carpetaId,
+      role: "assistant",
+      content: answer,
+      sources
+    });
+
     return res.json({
       answer,
-      document: {
-        id: doc.id,
-        nom: doc.nom,
-        tipus: doc.tipus,
-        mida: doc.mida,
-        path: doc.path,
-        data_pujada: doc.data_pujada,
-      },
+      sources: assistantMsg.sources
     });
   } catch (err) {
     console.error("Error a consultaDocument:", err);

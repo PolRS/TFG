@@ -6,7 +6,8 @@ import { createRequire } from "module";
 
 // Necessari per carregar mòduls CommonJS (com pdf-parse) des d'ESM
 const require = createRequire(import.meta.url);
-const pdf = require("pdf-parse");
+const pdfParseModule = require("pdf-parse");
+const pdfParse = pdfParseModule?.default ?? pdfParseModule;
 
 /**
  * Extreu text del fitxer segons el tipus (mimetype).
@@ -23,7 +24,7 @@ async function extractContentText(filePath, mimetype) {
     // 2) PDF
     if (mimetype === "application/pdf") {
       const buffer = await fs.readFile(filePath);
-      const data = await pdf(buffer);
+      const data = await pdfParse(buffer);
       return data.text || "";
     }
 
@@ -147,4 +148,19 @@ export async function eliminaDocument(userId, carpetaId, documentId) {
   } finally {
     client.release();
   }
+}
+
+
+export async function getDocumentInCarpeta(carpetaId, documentId) {
+  const { rows } = await pool.query(
+    `
+    SELECT d.id, d.nom, d.tipus, d.mida, d.path, d.data_pujada, d.content_text
+    FROM documents d
+    JOIN carpetes_documents cd ON cd.document_id = d.id
+    WHERE cd.carpeta_id = $1 AND d.id = $2
+    `,
+    [carpetaId, documentId]
+  );
+
+  return rows[0] || null;
 }

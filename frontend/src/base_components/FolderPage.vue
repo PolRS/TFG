@@ -53,6 +53,7 @@
         </div>
         <DocumentChat
           v-else
+          :carpeta-id="carpeta.id"
           :document-id="selectedDocument.id"
           :document-title="selectedDocument.nom"
         />
