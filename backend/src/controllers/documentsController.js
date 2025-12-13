@@ -45,13 +45,13 @@ export async function eliminaDocument(req, res) {
 
     if (!deleted) return res.status(404).json({ error: "Document no trobat" });
 
-    // Esborrem el fitxer físic
+    /*// Esborrem el fitxer físic
     if (deleted.path_fitxer) {
       fs.unlink(deleted.path_fitxer, err => {
         if (err) 
           console.warn("No s'ha pogut eliminar el fitxer:", err);
       });
-    }
+    }*/
 
     res.json({ missatge: "Document eliminat correctament" });
   } catch (err) {

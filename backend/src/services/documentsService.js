@@ -1,13 +1,34 @@
 // backend/src/services/documentService.js
 import pool from "../db.js";
 import fs from "fs/promises";
+import path from "path";
 import mammoth from "mammoth";
-import { createRequire } from "module";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
-// Necessari per carregar mòduls CommonJS (com pdf-parse) des d'ESM
-const require = createRequire(import.meta.url);
-const pdfParseModule = require("pdf-parse");
-const pdfParse = pdfParseModule?.default ?? pdfParseModule;
+
+
+async function extractTextFromPdf(buffer) {
+  const uint8 = new Uint8Array(buffer); // ✅ Buffer -> Uint8Array
+
+  const loadingTask = pdfjsLib.getDocument({ data: uint8 });
+  const pdf = await loadingTask.promise;
+
+  let fullText = "";
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+
+    const pageText = textContent.items
+      .map((item) => (item.str ? item.str : ""))
+      .join(" ");
+
+    fullText += pageText + "\n";
+  }
+
+  return fullText.trim();
+}
+
 
 /**
  * Extreu text del fitxer segons el tipus (mimetype).
@@ -15,17 +36,20 @@ const pdfParse = pdfParseModule?.default ?? pdfParseModule;
  */
 async function extractContentText(filePath, mimetype) {
   try {
-    // 1) Fitxers de text pla
+    const extension = path.extname(filePath).toLowerCase();
+    const isPdf =
+      mimetype === "application/pdf" || mimetype.includes("pdf") || extension === ".pdf";
+
+    // 1) Text pla
     if (mimetype.startsWith("text/")) {
-      const data = await fs.readFile(filePath, "utf8");
-      return data;
+      return await fs.readFile(filePath, "utf8");
     }
 
-    // 2) PDF
-    if (mimetype === "application/pdf") {
+    // 2) PDF (PDF.js)
+    if (isPdf) {
       const buffer = await fs.readFile(filePath);
-      const data = await pdfParse(buffer);
-      return data.text || "";
+      const text = await extractTextFromPdf(buffer);
+      return text || "";
     }
 
     // 3) DOCX
@@ -38,14 +62,14 @@ async function extractContentText(filePath, mimetype) {
       return result.value || "";
     }
 
-    // 4) Altres formats encara no suportats -> buit
-    console.warn("Mimetype no suportat per extreure text:", mimetype);
+    // 4) Altres formats (imatges incloses) -> buit sense OCR
     return "";
   } catch (err) {
-    console.error("Error extraient content_text del fitxer:", err.message);
+    console.error("Error extraient content_text del fitxer:", err);
     return "";
   }
 }
+
 
 export async function getDocumentById(documentId) {
   const result = await pool.query(
@@ -122,14 +146,23 @@ export async function eliminaDocument(userId, carpetaId, documentId) {
       return null; // no autoritzat
     }
 
-    // Eliminar relació carpeta-document
+    // Eliminar relació NOMÉS d’aquesta carpeta
     await client.query(
-      `DELETE FROM carpetes_documents WHERE document_id = $1`,
+      `DELETE FROM carpetes_documents WHERE carpeta_id = $1 AND document_id = $2`,
+      [carpetaId, documentId]
+    );
+
+    // Comprovar si el document encara està linkat a altres carpetes
+    const { rows: links } = await client.query(
+      `SELECT 1 FROM carpetes_documents WHERE document_id = $1 LIMIT 1`,
       [documentId]
     );
 
-    // Eliminar document
-    await client.query(`DELETE FROM documents WHERE id = $1`, [documentId]);
+    if (links.length === 0) {
+      // Ja no està linkat enlloc: eliminar document
+      await client.query(`DELETE FROM documents WHERE id = $1`, [documentId]);
+    }
+
 
     await client.query("COMMIT");
 
@@ -138,7 +171,11 @@ export async function eliminaDocument(userId, carpetaId, documentId) {
     try {
       await fs.unlink(path_fitxer);
     } catch (err) {
-      console.warn("No s'ha pogut eliminar el fitxer:", err.message);
+      if (err.code === "ENOENT") {
+        console.warn("Fitxer ja eliminat o inexistent:", path_fitxer);
+      } else {
+        console.warn("No s'ha pogut eliminar el fitxer:", err.message);
+      }
     }
 
     return { id: documentId, path_fitxer };
