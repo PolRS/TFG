@@ -2,7 +2,7 @@
 import pool from "../db.js";
 import fs from "fs/promises";
 import mammoth from "mammoth";
-import pdfParse from "pdf-parse";
+import * as pdf from "pdf-parse";
 
 /**
  * Extreu text del fitxer segons el tipus (mimetype).
@@ -19,7 +19,7 @@ async function extractContentText(filePath, mimetype) {
     // 2) PDF
     if (mimetype === "application/pdf") {
       const buffer = await fs.readFile(filePath);
-      const data = await pdfParse(buffer);
+      const data = await pdf.default(buffer);
       return data.text || "";
     }
 
