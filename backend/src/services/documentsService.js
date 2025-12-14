@@ -1,9 +1,9 @@
-// backend/src/services/documentService.js
 import pool from "../db.js";
 import fs from "fs/promises";
 import path from "path";
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import * as ragService from "./ragService.js";
 
 
 
@@ -121,6 +121,18 @@ export async function creaDocument(carpetaId, file) {
     VALUES ($1, $2)
   `;
   await pool.query(linkQuery, [carpetaId, document.id]);
+
+  // 4) Generar Embeddings (RAG) en segon pla
+  try {
+    if (contentText && contentText.length > 0) {
+      // No fem await per no bloquejar la resposta al frontend
+      // Però loguegem errors
+      ragService.storeDocumentChunks(document.id, contentText)
+        .catch(err => console.error("Error background embedding:", err));
+    }
+  } catch (err) {
+    console.error("Error initiating RAG processing:", err);
+  }
 
   return document;
 }

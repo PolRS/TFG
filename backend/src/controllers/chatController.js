@@ -3,6 +3,7 @@ import { callLLM } from "../services/llmService.js";
 import { getDocumentById } from "../services/documentsService.js";
 import { getMessagesByCarpeta, addMessage } from "../services/chatServices.js";
 import { getDocumentInCarpeta } from "../services/documentsService.js";
+import { searchSimilarContext } from "../services/ragService.js";
 
 export async function getHistory(req, res) {
   try {
@@ -40,28 +41,36 @@ export async function consultaDocument(req, res) {
       return res.status(400).json({ error: "Aquest document no té text associat" });
     }
 
-    // 2) Construir prompt (sense embeddings)
-    const MAX_LENGTH = 8000;
-    const truncatedText = doc.content_text.slice(0, MAX_LENGTH);
+    // 2) Buscar context rellevant (RAG)
+    let context = "";
+
+    // Si tenim text, busquem vectors semblants
+    const similarChunks = await searchSimilarContext(message, 3);
+
+    // Filtrar només chunks d'aquest document concret
+    // Nota: en una implementació real podríem buscar en TOTS els documents de la carpeta,
+    // però aquí mantenim la lògica de "xat amb un document" si documentId ve informat.
+    const relevantChunks = similarChunks.filter(c => c.document_id === doc.id);
+
+    if (relevantChunks.length > 0) {
+      context = relevantChunks.map(c => c.content_chunk).join("\n\n---\n\n");
+    } else {
+      // Fallback: si no hi ha chunks (doc antic buit?), agafem primers 4000 chars
+      context = doc.content_text ? doc.content_text.slice(0, 4000) : "";
+    }
 
     const prompt = `
-Respon ÚNICAMENT basant-te en el document proporcionat.
-
 DOCUMENT: ${doc.nom}
-
-CONTINGUT:
-"""
-${truncatedText}
-"""
 
 PREGUNTA:
 "${message}"
 
-Respon de forma clara i concisa, en el mateix idioma que la pregunta.
+Respon de forma clara i concisa.
     `.trim();
 
     // 3) Cridar LLM
-    const answer = await callLLM(prompt);
+    // 3) Cridar LLM amb context RAG
+    const answer = await callLLM(prompt, context);
 
     // 4) Guardar historial per carpeta
     await addMessage({

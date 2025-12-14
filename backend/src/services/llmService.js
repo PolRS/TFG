@@ -2,7 +2,12 @@ import fetch from 'node-fetch';
 
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 
-export async function callLLM(prompt) {
+export async function callLLM(prompt, context = "") {
+  let systemMessage = "Ets un assistent que respon preguntes.";
+  if (context) {
+    systemMessage += ` Fes servir NOMÉS el següent context per respondre. Si no ho saps, digues-ho.\n\nCONTEXT:\n${context}`;
+  }
+
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -12,7 +17,7 @@ export async function callLLM(prompt) {
     body: JSON.stringify({
       model: "mistral-small-latest",
       messages: [
-        { role: "system", content: "Ets un assistent que respon preguntes sobre documents." },
+        { role: "system", content: systemMessage },
         { role: "user", content: prompt }
       ]
     })
