@@ -1,8 +1,8 @@
-# 🚀 Gestor Documental Intel·ligent (NotebookLM Clone)
+# Biblioteca personal per al a cerca de docouments amb IA
 
 Aquest projecte és un sistema de gestió documental amb IA (RAG) que permet fer preguntes sobre els teus documents PDF/DOCX.
 
-## 📋 Requisits Previs
+## Requisits Previs
 Abans de començar, necessites tenir instal·lat:
 1.  **Node.js** (v18 o superior) - [Descarregar](https://nodejs.org/)
 2.  **PostgreSQL** (Base de dades) - [Descarregar](https://www.postgresql.org/download/)
@@ -10,7 +10,7 @@ Abans de començar, necessites tenir instal·lat:
 
 ---
 
-## 🛠️ Instal·lació (Pas a Pas)
+## Instal·lació (Pas a Pas)
 
 ### 1. Preparar la Base de Dades
 Obre `pgAdmin` (o el teu terminal SQL) i executa aquestes comandes:
@@ -28,14 +28,6 @@ Obre `pgAdmin` (o el teu terminal SQL) i executa aquestes comandes:
     ```bash
     npm install
     ```
-3.  Crea un fitxer anomenat `.env` dins de `/backend` amb aquest contingut (canvia la contrasenya per la teva):
-    ```env
-    PORT=3000
-    DATABASE_URL=postgresql://postgres:LA_TEVA_CONTRASENYA@localhost:5432/tfg_db
-    JWT_SECRET=secret_super_segur
-    MISTRAL_API_KEY=la_teva_api_key_de_mistral
-    FRONTEND_URL=http://localhost:5173
-    ```
 
 ### 3. Configurar el Frontend
 
@@ -44,14 +36,10 @@ Obre `pgAdmin` (o el teu terminal SQL) i executa aquestes comandes:
     ```bash
     npm install
     ```
-3.  Crea un fitxer `.env` a `/frontend` si no existeix:
-    ```env
-    VITE_API_URL=http://localhost:3000
-    ```
 
 ---
 
-## ▶️ Llançar l'Aplicació
+## Llançar l'Aplicació
 
 Necessites tenir **dos terminals** oberts alhora:
 
