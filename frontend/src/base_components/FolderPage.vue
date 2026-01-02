@@ -20,16 +20,22 @@
         <h2>{{ carpeta.nom }}</h2>
 
         <h3>Documents</h3>
-        <ul>
+        <ul class="doc-list">
           <li
             v-for="doc in documents"
             :key="doc.id"
             class="document-item"
+            :class="{ selected: selectedDocuments.some(d => d.id === doc.id) }"
           >
-            <span class="doc-name" @click="$emit('openDocument', doc)">
-              {{ doc.nom }}
-            </span>
-            <button class="delete-btn" @click="$emit('eliminaDocument', doc.id)">
+            <label class="doc-label">
+              <input 
+                type="checkbox" 
+                :checked="selectedDocuments.some(d => d.id === doc.id)"
+                @change="$emit('toggleDocumentSelection', doc)"
+              />
+              <span class="doc-name">{{ doc.nom }}</span>
+            </label>
+            <button class="delete-btn" @click.stop="$emit('eliminaDocument', doc.id)">
               🗑️
             </button>
           </li>
@@ -47,15 +53,15 @@
       </aside>
 
       <main class="chat-panel">
-        <div v-if="!selectedDocument" class="chat-placeholder">
+        <div v-if="selectedDocuments.length === 0" class="chat-placeholder">
           <h3>Xat</h3>
-          <p>Selecciona un document per començar el Xat</p>
+          <p>Selecciona un o més documents per començar el Xat</p>
         </div>
         <DocumentChat
           v-else
           :carpeta-id="carpeta.id"
-          :document-id="selectedDocument.id"
-          :document-title="selectedDocument.nom"
+          :document-ids="selectedDocuments.map(d => d.id)"
+          :document-titles="selectedDocuments.map(d => d.nom)"
         />
       </main>
 
@@ -83,7 +89,7 @@ export default {
     user: { type: Object, required: true },
     carpeta: { type: Object, required: true },
     documents: { type: Array, required: true },
-    selectedDocument: { type: Object, required: false }
+    selectedDocuments: { type: Array, required: false, default: () => [] }
   }
 };
 </script>
@@ -158,6 +164,12 @@ export default {
   padding: 1rem;
 }
 
+.doc-list {
+  list-style: none; /* Remove bullets */
+  padding: 0;
+  margin: 0;
+}
+
 .document-item {
   display: flex;
   justify-content: space-between;
@@ -166,10 +178,27 @@ export default {
   margin-bottom: 8px;
   padding: 6px 10px;
   border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.document-item.selected {
+  background: #cbd5e1; /* Slightly darker when selected */
+  border: 1px solid #94a3b8;
+}
+
+.doc-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  cursor: pointer;
+  overflow: hidden; /* Handle long names */
 }
 
 .doc-name {
-  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .delete-btn {

@@ -63,20 +63,19 @@ export async function storeDocumentChunks(documentId, fullText) {
 }
 
 // 3. Search Similar Context (Manual Cosine Similarity)
-export async function searchSimilarContext(queryText, limit = 5) {
+export async function searchSimilarContext(queryText, limit = 5, filterDocumentIds = null) {
     const queryEmbedding = await generateEmbedding(queryText);
 
     // SQL Magic: Calculate Cosine Similarity Manually
-    // cosine_similarity(A, B) = (A . B) / (|A| * |B|)
-    // Since embeddings from Mistral are usually normalized, |A| = 1 and |B| = 1, so dot product is enough?
-    // Let's implement full formula to be safe.
-
     const vectorString = `ARRAY[${queryEmbedding.join(",")}]::float8[]`;
 
-    // Provide a SQL function to do the similarity search
-    // Note: unnesting large arrays in SQL for every row is slow, but fine for <10k rows.
-    // For better performance in JS: fetch all vectors, compute in JS.
-    // But SQL is easier to implement right now.
+    let filterClause = "";
+    const params = [limit];
+
+    if (filterDocumentIds && Array.isArray(filterDocumentIds) && filterDocumentIds.length > 0) {
+        params.push(filterDocumentIds);
+        filterClause = `WHERE document_id = ANY($2)`;
+    }
 
     const sql = `
     SELECT id, document_id, content_chunk, 
@@ -87,10 +86,11 @@ export async function searchSimilarContext(queryText, limit = 5) {
              ON v_opt.i = q_opt.j
            ) as similarity
     FROM document_chunks
+    ${filterClause}
     ORDER BY similarity DESC
     LIMIT $1;
   `;
 
-    const { rows } = await pool.query(sql, [limit]);
+    const { rows } = await pool.query(sql, params);
     return rows;
 }

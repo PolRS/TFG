@@ -3,12 +3,12 @@
     :user="user"
     :carpeta="carpeta"
     :documents="documents"
-    :selectedDocument="selectedDocument"
+    :selectedDocuments="selectedDocuments"
     @logout="$emit('logout')"
     @tancaCarpeta="$emit('tancaCarpeta')"
     @uploadFile="handleUploadFile"
     @eliminaDocument="handleEliminaDocument"
-    @openDocument="handleOpenDocument"
+    @toggleDocumentSelection="handleToggleDocumentSelection"
   />
 </template>
 
@@ -26,7 +26,7 @@ export default {
   data() {
     return {
       documents: [],
-      selectedDocument: null
+      selectedDocuments: []
     };
   },
   async mounted() {
@@ -65,13 +65,20 @@ export default {
       try {
         await api.delete(`/carpeta/${this.carpeta.id}/${documentId}`);
         this.documents = this.documents.filter(d => d.id !== documentId);
+        // Also remove from selection if present
+        this.selectedDocuments = this.selectedDocuments.filter(d => d.id !== documentId);
       } catch (err) {
         console.error("Error eliminant document:", err);
       }
     },
 
-    handleOpenDocument(doc) {
-      this.selectedDocument = doc
+    handleToggleDocumentSelection(doc) {
+      const index = this.selectedDocuments.findIndex(d => d.id === doc.id);
+      if (index >= 0) {
+        this.selectedDocuments.splice(index, 1);
+      } else {
+        this.selectedDocuments.push(doc);
+      }
     }
   }
 };

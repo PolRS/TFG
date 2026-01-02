@@ -4,6 +4,71 @@ import path from "path";
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import * as ragService from "./ragService.js";
+import officeParser from "officeparser";
+
+async function extractContentText(filePath, mimetype) {
+  try {
+    let extension = path.extname(filePath).toLowerCase();
+    
+    // Si el mimetype és genèric, intentem detectar-lo millor amb 'file'
+    if (mimetype === "application/octet-stream") {
+       const realMime = await detectRealMimeType(filePath);
+       if (realMime) {
+         console.log(`Tipus detectat per OS: ${realMime} (era ${mimetype})`);
+         mimetype = realMime;
+       }
+    }
+
+    const isPdf =
+      mimetype === "application/pdf" || mimetype.includes("pdf") || extension === ".pdf";
+
+    const isPptx = 
+      mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+      mimetype === "application/vnd.ms-powerpoint" ||
+      extension === ".pptx" || 
+      extension === ".ppt";
+
+    // 1) Text pla
+    if (mimetype.startsWith("text/") || extension === ".txt" || extension === ".md" || extension === ".csv") {
+      return await fs.readFile(filePath, "utf8");
+    }
+
+    // 2) PDF (PDF.js)
+    if (isPdf) {
+      const buffer = await fs.readFile(filePath);
+      const text = await extractTextFromPdf(buffer);
+      return text || "";
+    }
+
+    // 3) DOCX
+    if (
+      mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      extension === ".docx"
+    ) {
+      const buffer = await fs.readFile(filePath);
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value || "";
+    }
+
+    // 4) PPTX (officeparser)
+    if (isPptx) {
+      try {
+        const text = await officeParser.parseOfficeAsync(filePath);
+        return text || "";
+      } catch (err) {
+        console.error("Error extraient text de PPTX:", err);
+        return "";
+      }
+    }
+
+    // 5) Altres formats -> buit sense OCR
+    console.warn(`Format no suportat per a extracció de text: ${mimetype} (${extension})`);
+    return "";
+  } catch (err) {
+    console.error("Error extraient content_text del fitxer:", err);
+    return "";
+  }
+}
 
 
 
@@ -30,45 +95,25 @@ async function extractTextFromPdf(buffer) {
 }
 
 
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execPromise = promisify(exec);
+
 /**
- * Extreu text del fitxer segons el tipus (mimetype).
- * Ara mateix: text/plain, application/pdf, docx.
+ * Detecta el tipus real del fitxer usant la comanda 'file' (Linux/Unix).
  */
-async function extractContentText(filePath, mimetype) {
+async function detectRealMimeType(filePath) {
   try {
-    const extension = path.extname(filePath).toLowerCase();
-    const isPdf =
-      mimetype === "application/pdf" || mimetype.includes("pdf") || extension === ".pdf";
-
-    // 1) Text pla
-    if (mimetype.startsWith("text/")) {
-      return await fs.readFile(filePath, "utf8");
-    }
-
-    // 2) PDF (PDF.js)
-    if (isPdf) {
-      const buffer = await fs.readFile(filePath);
-      const text = await extractTextFromPdf(buffer);
-      return text || "";
-    }
-
-    // 3) DOCX
-    if (
-      mimetype ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
-      const buffer = await fs.readFile(filePath);
-      const result = await mammoth.extractRawText({ buffer });
-      return result.value || "";
-    }
-
-    // 4) Altres formats (imatges incloses) -> buit sense OCR
-    return "";
+    const { stdout } = await execPromise(`file -b --mime-type "${filePath}"`);
+    return stdout.trim();
   } catch (err) {
-    console.error("Error extraient content_text del fitxer:", err);
+    console.warn("No s'ha pogut detectar el tipus amb 'file':", err);
     return "";
   }
 }
+
+
 
 
 export async function getDocumentById(documentId) {

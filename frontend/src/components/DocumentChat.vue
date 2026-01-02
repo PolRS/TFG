@@ -1,6 +1,9 @@
 <template>
   <div class="doc-chat">
-    <h2>Consultant: {{ documentTitle }}</h2>
+    <h2>Consultant: {{ titleDisplay }}</h2>
+    <div class="subtitle" v-if="documentTitles.length > 1">
+        <small>{{ documentTitles.join(', ') }}</small>
+    </div>
 
     <div class="messages">
       <div
@@ -49,13 +52,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import api from "@/api.js";
 
 const props = defineProps({
   carpetaId: { type: Number, required: true },
-  documentId: { type: Number, required: true },
-  documentTitle: { type: String, default: "" }
+  documentIds: { type: Array, required: true }, // Array of numbers
+  documentTitles: { type: Array, default: () => [] }
 });
 
 const question = ref("");
@@ -63,8 +66,21 @@ const messages = ref([]);
 const error = ref("");
 const loading = ref(false);
 
+const titleDisplay = computed(() => {
+    if (props.documentTitles.length === 1) return props.documentTitles[0];
+    return `${props.documentTitles.length} documents`;
+});
+
 async function loadHistory() {
   error.value = "";
+  // History is per folder, so we just load it.
+  // Ideally we might want to filter history by selected docs, 
+  // but current backend returns all messages for the folder.
+  // We'll keep it simple as per plan.
+  
+  // NOTE: If we switch documents, we might want to clear local messages if they are not from history?
+  // But since history is global for folder, it's fine.
+  
   messages.value = [];
 
   try {
@@ -97,7 +113,7 @@ async function sendQuestion() {
   try {
     const res = await api.post("/chat/query", {
       carpetaId: props.carpetaId,
-      documentId: props.documentId,
+      documentIds: props.documentIds,
       message: text
     });
 
@@ -129,6 +145,10 @@ watch(
   () => props.carpetaId,
   () => loadHistory()
 );
+
+// If selected documents change, we don't necessarily need to reload history 
+// (since it's folder based), but maybe we want to visual cues?
+// For now, no action needed on doc change other than reactive props.
 </script>
 
 <style scoped>
