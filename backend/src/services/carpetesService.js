@@ -1,5 +1,6 @@
 import pool from "../db.js";
 import fs from "fs/promises";
+import * as documentsService from "./documentsService.js";
 
 /**
  * Retorna totes les carpetes d’un usuari
@@ -32,67 +33,60 @@ export async function eliminaCarpeta(userId, carpetaId) {
   const client = await pool.connect();
 
   try {
-    await client.query("BEGIN");
-
-    // Comprovem que la carpeta pertany a l’usuari
+    // 1. Comprovar propietat carpeta
     const { rows: check } = await client.query(
       `SELECT id FROM carpetes WHERE id = $1 AND user_id = $2`,
       [carpetaId, userId]
     );
 
-    if (check.length === 0) {
-      await client.query("ROLLBACK");
-      return null;
-    }
+    if (check.length === 0) return null;
 
-    // Obtenim TOTS els fitxers associats
+    // 2. Obtenim IDs dels documents de la carpeta
     const { rows: docs } = await client.query(
-      `SELECT d.id, d.path
-       FROM documents d
-       JOIN carpetes_documents cd ON cd.document_id = d.id
-       WHERE cd.carpeta_id = $1`,
+      `SELECT document_id FROM carpetes_documents WHERE carpeta_id = $1`,
       [carpetaId]
     );
 
-    // Eliminem relacions carpeta-document
-    await client.query(
-      `DELETE FROM carpetes_documents WHERE carpeta_id = $1`,
-      [carpetaId]
-    );
+    // 3. Eliminem cada document un per un fent servir la lògica segura
+    // Nota: Ho fem fora de la transacció gran d'aquí o dins?
+    // eliminaDocument gestiona la seva pròpia transacció.
+    // Per evitar problemes de transaccions aniuades, podem fer-ho en bucle.
+    // Si falla un, potser queda a mitges, però és millor que reimplementar tota la lògica.
 
-    // Eliminem els documents de la BD
-    await client.query(
-      `DELETE FROM documents
-       WHERE id IN (
-         SELECT document_id FROM carpetes_documents WHERE carpeta_id = $1
-       )`,
-      [carpetaId]
-    );
-
-    // Eliminem la carpeta
-    await client.query(
-      `DELETE FROM carpetes WHERE id = $1`,
-      [carpetaId]
-    );
-
-    await client.query("COMMIT");
-
-    // Eliminem fitxers físics
-    for (const doc of docs) {
-      try {
-        await fs.unlink(doc.path);
-        console.log("Fitxer eliminat:", doc.path);
-      } catch (err) {
-        console.warn("⚠️ No s'ha pogut eliminar el fitxer:", err);
-      }
-    }
-
-    return true;
-
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
+    // Per seguretat, com documentsService.eliminaDocument fa BEGIN/COMMIT, 
+    // l'ideal és cridar-lo seqüencialment.
   } finally {
     client.release();
   }
+
+  // Cridem al service sense client (fa servir pool)
+  // Obtenim els IDs primer (ja ho hem fet, però cal persistir la connexió? No, fem query simple)
+
+  // Refem per simplicitat:
+
+  // 1. Validar carpeta
+  const { rows: check } = await pool.query(
+    `SELECT id FROM carpetes WHERE id = $1 AND user_id = $2`,
+    [carpetaId, userId]
+  );
+  if (check.length === 0) return null;
+
+  // 2. Obtenir documents
+  const { rows: docs } = await pool.query(
+    `SELECT document_id FROM carpetes_documents WHERE carpeta_id = $1`,
+    [carpetaId]
+  );
+
+  // 3. Eliminar documents un a un
+  for (const doc of docs) {
+    await documentsService.eliminaDocument(userId, carpetaId, doc.document_id);
+  }
+
+  // 4. Eliminar la carpeta (ara hauria d'estar buida de relacions, però per si de cas, el service eliminaDocument ja treu la relació)
+  // De fet, documentsService.eliminaDocument TREU la relació carpetes_documents.
+  // Per tant, només queda esborrar la carpeta de la taula 'carpetes'.
+
+  await pool.query(`DELETE FROM carpetes WHERE id = $1`, [carpetaId]);
+
+  return true;
 }

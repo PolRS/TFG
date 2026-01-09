@@ -9,23 +9,23 @@ import officeParser from "officeparser";
 async function extractContentText(filePath, mimetype) {
   try {
     let extension = path.extname(filePath).toLowerCase();
-    
+
     // Si el mimetype és genèric, intentem detectar-lo millor amb 'file'
     if (mimetype === "application/octet-stream") {
-       const realMime = await detectRealMimeType(filePath);
-       if (realMime) {
-         console.log(`Tipus detectat per OS: ${realMime} (era ${mimetype})`);
-         mimetype = realMime;
-       }
+      const realMime = await detectRealMimeType(filePath);
+      if (realMime) {
+        console.log(`Tipus detectat per OS: ${realMime} (era ${mimetype})`);
+        mimetype = realMime;
+      }
     }
 
     const isPdf =
       mimetype === "application/pdf" || mimetype.includes("pdf") || extension === ".pdf";
 
-    const isPptx = 
+    const isPptx =
       mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
       mimetype === "application/vnd.ms-powerpoint" ||
-      extension === ".pptx" || 
+      extension === ".pptx" ||
       extension === ".ppt";
 
     // 1) Text pla
@@ -143,6 +143,23 @@ export async function getDocumentsByCarpeta(userId, carpetaId) {
   return rows;
 }
 
+export async function getContentFromDocuments(userId, documentIds) {
+  // Assegurar que els documents pertanyen a l'usuari (via carpetes linkades o directament)
+  // Per simplificar, assumim comprovació de propietat bàsica o confiem en la query
+  // Aquí fem una subquery per comprovar que el document està en alguna carpeta de l'usuari
+  const query = `
+    SELECT d.id, d.nom, d.content_text
+    FROM documents d
+    JOIN carpetes_documents cd ON cd.document_id = d.id
+    JOIN carpetes c ON c.id = cd.carpeta_id
+    WHERE d.id = ANY($1) AND c.user_id = $2
+    GROUP BY d.id
+  `;
+
+  const { rows } = await pool.query(query, [documentIds, userId]);
+  return rows; // Retorna array d'objectes { id, nom, content_text }
+}
+
 export async function creaDocument(carpetaId, file) {
   const { originalname, mimetype, size, path: filePath } = file;
 
@@ -226,7 +243,9 @@ export async function eliminaDocument(userId, carpetaId, documentId) {
     const path_fitxer = check[0].path;
 
     try {
-      await fs.unlink(path_fitxer);
+      if (links.length === 0) {
+        await fs.unlink(path_fitxer);
+      }
     } catch (err) {
       if (err.code === "ENOENT") {
         console.warn("Fitxer ja eliminat o inexistent:", path_fitxer);
@@ -235,7 +254,8 @@ export async function eliminaDocument(userId, carpetaId, documentId) {
       }
     }
 
-    return { id: documentId, path_fitxer };
+    return { id: documentId, path_fitxer: links.length === 0 ? path_fitxer : null };
+
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -243,7 +263,6 @@ export async function eliminaDocument(userId, carpetaId, documentId) {
     client.release();
   }
 }
-
 
 export async function getDocumentInCarpeta(carpetaId, documentId) {
   const { rows } = await pool.query(
@@ -257,4 +276,55 @@ export async function getDocumentInCarpeta(carpetaId, documentId) {
   );
 
   return rows[0] || null;
+}
+
+export async function saveResult(carpetaId, tipus, contingut) {
+  const client = await pool.connect();
+  try {
+    const query = `
+      INSERT INTO resultats_ia (carpeta_id, tipus, contingut)
+      VALUES ($1, $2, $3)
+      RETURNING id, tipus, contingut, to_char(data_creacio, 'DD/MM/YYYY HH24:MI') as date
+    `;
+    const { rows } = await client.query(query, [carpetaId, tipus, contingut]);
+    return rows[0];
+  } catch (err) {
+    console.error("Error saving result:", err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getResultsByCarpeta(carpetaId) {
+  const client = await pool.connect();
+  try {
+    const query = `
+      SELECT id, tipus, contingut, to_char(data_creacio, 'DD/MM/YYYY HH24:MI') as date
+      FROM resultats_ia
+      WHERE carpeta_id = $1
+      ORDER BY data_creacio DESC
+    `;
+    const { rows } = await client.query(query, [carpetaId]);
+    return rows;
+  } catch (err) {
+    console.error("Error getting results:", err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteResult(resultId) {
+  const client = await pool.connect();
+  try {
+    const query = "DELETE FROM resultats_ia WHERE id = $1 RETURNING id";
+    const { rows } = await client.query(query, [resultId]);
+    return rows.length > 0;
+  } catch (err) {
+    console.error("Error deleting result:", err);
+    throw err;
+  } finally {
+    client.release();
+  }
 }

@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true, // 👈 molt important: envia les cookies automàticament
+  withCredentials: true, // envia les cookies automàticament
 });
 
 api.interceptors.response.use(

@@ -5,8 +5,10 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { llistaDocuments, afegeixDocument, eliminaDocument } from "../controllers/documentsController.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { generarResum, generarDiagrama, getResultats, eliminaResultat, getDocument, generarTest } from "../controllers/documentsController.js";
 
 const router = express.Router();
+
 
 // Ruta absoluta correcta
 const __filename = fileURLToPath(import.meta.url);
@@ -44,5 +46,21 @@ router.post("/:carpetaId", upload.single("fitxer"), afegeixDocument);
 
 // Eliminar document
 router.delete("/:carpetaId/:documentId", eliminaDocument);
+
+// Generar Resum
+router.post("/:carpetaId/resum", generarResum);
+// Generar Diagrama
+router.post("/:carpetaId/diagrama", generarDiagrama);
+// Generar Test
+router.post("/:carpetaId/test", generarTest);
+
+// Obtenir Resultats Guardats
+router.get("/:carpetaId/resultats", getResultats);
+
+// Eliminar Resultat
+router.delete("/:carpetaId/resultats/:resultatId", eliminaResultat);
+
+// Obtenir contingut un document
+router.get("/:carpetaId/:documentId", getDocument);
 
 export default router;

@@ -4,11 +4,31 @@
     :carpeta="carpeta"
     :documents="documents"
     :selectedDocuments="selectedDocuments"
+    :savedSummaries="savedSummaries"
+    :activeSummary="activeSummary"
+    :savedDiagrams="savedDiagrams"
+    :activeDiagram="activeDiagram"
     @logout="$emit('logout')"
     @tancaCarpeta="$emit('tancaCarpeta')"
     @uploadFile="handleUploadFile"
     @eliminaDocument="handleEliminaDocument"
     @toggleDocumentSelection="handleToggleDocumentSelection"
+    @generateSummary="handleGenerateSummary"
+    @closeSummary="activeSummary = null"
+    @openSummary="activeSummary = $event"
+    @deleteSummary="handleDeleteSummary"
+    @generateDiagram="handleGenerateDiagram"
+    @closeDiagram="activeDiagram = null"
+    @openDiagram="activeDiagram = $event"
+    @deleteDiagram="handleDeleteDiagram"
+    :fetchDocumentContent="handleGetDocumentContent"
+    
+    :savedTests="savedTests"
+    :activeTest="activeTest"
+    @generateTest="handleGenerateTest"
+    @openTest="activeTest = $event"
+    @closeTest="activeTest = null"
+    @deleteTest="handleDeleteTest"
   />
 </template>
 
@@ -26,19 +46,49 @@ export default {
   data() {
     return {
       documents: [],
-      selectedDocuments: []
+      selectedDocuments: [],
+      savedSummaries: [], // Array de { id, text, date }
+      activeSummary: null, // Resum actualment obert
+      savedDiagrams: [], // Array de { id, code, date }
+      activeDiagram: null, // Diagrama actualment obert
+      savedTests: [],
+      activeTest: null,
+      isLoading: false
     };
   },
-  async mounted() {
+  async created() {
     await this.fetchDocuments();
   },
   methods: {
     async fetchDocuments() {
+      if (!this.carpeta) return;
       try {
-        const res = await api.get(`/carpeta/${this.carpeta.id}`);
-        this.documents = res.data.documents || [];
+        const resDocs = await api.get(`/carpeta/${this.carpeta.id}`);
+        this.documents = resDocs.data.documents;
+
+        const resResults = await api.get(`/carpeta/${this.carpeta.id}/resultats`);
+        const results = resResults.data.results;
+
+        this.savedSummaries = results.filter(r => r.tipus === 'resum').map(r => ({
+          id: r.id,
+          date: r.date,
+          text: r.contingut
+        }));
+
+        this.savedDiagrams = results.filter(r => r.tipus === 'diagrama').map(r => ({
+          id: r.id,
+          date: r.date,
+          code: r.contingut
+        }));
+        
+        this.savedTests = results.filter(r => r.tipus === 'test').map(r => ({
+          id: r.id,
+          date: r.date,
+          questions: JSON.parse(r.contingut) // Parse JSON string
+        }));
+
       } catch (err) {
-        console.error("Error carregant documents:", err);
+        console.error("Error carregant dades carpeta:", err);
       }
     },
 
@@ -78,6 +128,114 @@ export default {
         this.selectedDocuments.splice(index, 1);
       } else {
         this.selectedDocuments.push(doc);
+      }
+    },
+
+    async handleGenerateSummary(documentIds) {
+      try {
+        const res = await api.post(`/carpeta/${this.carpeta.id}/resum`, { documentIds });
+        
+        const newSummary = {
+          id: res.data.result.id,
+          text: res.data.result.contingut,
+          date: res.data.result.date
+        };
+        
+        this.savedSummaries.unshift(newSummary);
+        // this.activeSummary = newSummary; // Don't auto-open
+        
+      } catch (err) {
+        console.error("Error generant resum:", err);
+        alert("Error generant el resum. Comprova la consola.");
+      }
+    },
+
+    async handleDeleteSummary(summaryId) {
+      if (!confirm("Segur que vols eliminar aquest resum?")) return;
+
+      try {
+        await api.delete(`/carpeta/${this.carpeta.id}/resultats/${summaryId}`);
+        this.savedSummaries = this.savedSummaries.filter(s => s.id !== summaryId);
+        if (this.activeSummary && this.activeSummary.id === summaryId) {
+          this.activeSummary = null;
+        }
+      } catch (err) {
+        console.error("Error eliminant resum:", err);
+      }
+    },
+
+    async handleGenerateDiagram(documentIds) {
+      try {
+        const res = await api.post(`/carpeta/${this.carpeta.id}/diagrama`, { documentIds });
+        
+        const newDiagram = {
+          id: res.data.result.id,
+          code: res.data.result.contingut,
+          date: res.data.result.date
+        };
+        
+        this.savedDiagrams.unshift(newDiagram);
+        // this.activeDiagram = newDiagram; // Don't auto-open
+        console.log("MiddleWare: Diagram generated (not opened):", newDiagram);
+      } catch (err) {
+        console.error("Error generant diagrama:", err);
+        alert("Error generant el diagrama. Comprova la consola.");
+      }
+    },
+
+    async handleDeleteDiagram(diagramId) {
+      if (!confirm("Segur que vols eliminar aquest diagrama?")) return;
+
+      try {
+        await api.delete(`/carpeta/${this.carpeta.id}/resultats/${diagramId}`);
+        this.savedDiagrams = this.savedDiagrams.filter(s => s.id !== diagramId);
+        if (this.activeDiagram && this.activeDiagram.id === diagramId) {
+          this.activeDiagram = null;
+        }
+      } catch (err) {
+        console.error("Error eliminant diagrama:", err);
+      }
+    },
+
+    async handleGetDocumentContent(documentId) {
+      try {
+        const res = await api.get(`/carpeta/${this.carpeta.id}/${documentId}`);
+        return res.data.document;
+      } catch (err) {
+        console.error("Error recuperant contingut document:", err);
+        return null;
+      }
+    },
+
+    async handleGenerateTest(documentIds) {
+      this.isLoading = true;
+      try {
+        const res = await api.post(`/carpeta/${this.carpeta.id}/test`, { documentIds });
+        const newTest = {
+          id: res.data.result.id,
+          date: res.data.result.date,
+          questions: JSON.parse(res.data.result.contingut)
+        };
+        this.savedTests.unshift(newTest);
+        // this.activeTest = newTest; // Don't auto-open
+      } catch (err) {
+        console.error("Error generant test:", err);
+        alert("Error generant el test via IA.");
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async handleDeleteTest(testId) {
+      if (!confirm("Segur que vols eliminar aquest test?")) return;
+      try {
+        await api.delete(`/carpeta/${this.carpeta.id}/resultats/${testId}`);
+        this.savedTests = this.savedTests.filter(t => t.id !== testId);
+        if (this.activeTest && this.activeTest.id === testId) {
+          this.activeTest = null;
+        }
+      } catch (err) {
+        console.error("Error eliminant test:", err);
       }
     }
   }
