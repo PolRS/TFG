@@ -24,6 +24,9 @@
     :fetchDocumentContent="handleGetDocumentContent"
     
     :savedTests="savedTests"
+    :activeTest="activeTest"
+    @generateTest="handleGenerateTest"
+    @openTest="activeTest = $event"
     @closeTest="activeTest = null"
     @deleteTest="handleDeleteTest"
 
