@@ -98,7 +98,7 @@ export default {
   padding: 2rem;
 }
 
-/* 🔹 Títol + botó a la mateixa línia */
+/* Títol + botó a la mateixa línia */
 .header-row {
   display: flex;
   justify-content: space-between;
@@ -106,7 +106,7 @@ export default {
   margin-bottom: 1.5rem;
 }
 
-/* 🔹 Botó de crear carpeta */
+/* Botó de crear carpeta */
 .add-folder {
   background: #3b82f6;
   color: white;
@@ -121,7 +121,7 @@ export default {
   background: #2563eb;
 }
 
-/* 🔹 Llista de carpetes */
+/* Llista de carpetes */
 .folders {
   display: flex;
   flex-wrap: wrap;

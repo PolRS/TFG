@@ -18,7 +18,7 @@
 
           <p class="content">{{ msg.content }}</p>
 
-          <!-- Fonts (només per missatges d'assistent) -->
+          <!-- Fonts -->
           <div
             v-if="msg.role === 'assistant' && msg.sources && msg.sources.length"
             class="sources"
@@ -51,104 +51,41 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, watch, computed } from "vue";
-import api from "@/api.js";
-
-const props = defineProps({
-  carpetaId: { type: Number, required: true },
-  documentIds: { type: Array, required: true }, // Array of numbers
-  documentTitles: { type: Array, default: () => [] }
-});
-
-const question = ref("");
-const messages = ref([]);
-const error = ref("");
-const loading = ref(false);
-
-const titleDisplay = computed(() => {
-    if (props.documentTitles.length === 1) return props.documentTitles[0];
-    return `${props.documentTitles.length} documents`;
-});
-
-async function loadHistory() {
-  error.value = "";
-  // History is per folder, so we just load it.
-  // Ideally we might want to filter history by selected docs, 
-  // but current backend returns all messages for the folder.
-  // We'll keep it simple as per plan.
-  
-  // NOTE: If we switch documents, we might want to clear local messages if they are not from history?
-  // But since history is global for folder, it's fine.
-  
-  messages.value = [];
-
-  try {
-    const res = await api.get("/chat/history", {
-      params: { carpetaId: props.carpetaId }
-    });
-    messages.value = res.data.messages || [];
-  } catch (err) {
-    console.error("Error carregant historial:", err);
-    error.value = err.response?.data?.error || "No s'ha pogut carregar l'historial";
-  }
+<script>
+export default {
+    name: "DocumentChatPage",
+    props: {
+        messages: { type: Array, default: () => [] },
+        loading: { type: Boolean, default: false },
+        error: { type: String, default: "" },
+        documentTitles: { type: Array, default: () => [] }
+    },
+    data() {
+        return {
+            question: ""
+        };
+    },
+    computed: {
+        titleDisplay() {
+            if (this.documentTitles.length === 1) return this.documentTitles[0];
+            return `${this.documentTitles.length} documents`;
+        }
+    },
+    methods: {
+        sendQuestion() {
+            if (!this.question.trim()) return;
+            this.$emit('sendMessage', this.question);
+            this.question = "";
+        },
+        handleKeydown(e) {
+            if (e.key === "Enter") {
+                if (e.shiftKey) return;
+                e.preventDefault();
+                this.sendQuestion();
+            }
+        }
+    }
 }
-
-async function sendQuestion() {
-  if (!question.value.trim()) return;
-
-  const text = question.value;
-
-  // UX: afegim el missatge localment
-  messages.value.push({
-    role: "user",
-    content: text,
-    created_at: new Date().toISOString()
-  });
-
-  question.value = "";
-  loading.value = true;
-  error.value = "";
-
-  try {
-    const res = await api.post("/chat/query", {
-      carpetaId: props.carpetaId,
-      documentIds: props.documentIds,
-      message: text
-    });
-
-    messages.value.push({
-      role: "assistant",
-      content: res.data.answer,
-      sources: res.data.sources || [],
-      created_at: new Date().toISOString()
-    });
-  } catch (err) {
-    console.error("Error consultant el document:", err);
-    error.value = err.response?.data?.error || "Error consultant el document";
-  } finally {
-    loading.value = false;
-  }
-}
-
-function handleKeydown(e) {
-  if (e.key === "Enter") {
-    if (e.shiftKey) return;
-    e.preventDefault();
-    sendQuestion();
-  }
-}
-
-onMounted(() => loadHistory());
-
-watch(
-  () => props.carpetaId,
-  () => loadHistory()
-);
-
-// If selected documents change, we don't necessarily need to reload history 
-// (since it's folder based), but maybe we want to visual cues?
-// For now, no action needed on doc change other than reactive props.
 </script>
 
 <style scoped>

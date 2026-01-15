@@ -28,7 +28,7 @@ async function run() {
         await client.query(`
       ALTER TABLE resultats_ia 
       ADD CONSTRAINT resultats_ia_tipus_check 
-      CHECK (tipus IN ('resum', 'diagrama', 'test'));
+      CHECK (tipus IN ('resum', 'diagrama', 'test', 'informe'));
     `);
 
         console.log("Constraint updated successfully!");

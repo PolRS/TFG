@@ -24,11 +24,15 @@
     :fetchDocumentContent="handleGetDocumentContent"
     
     :savedTests="savedTests"
-    :activeTest="activeTest"
-    @generateTest="handleGenerateTest"
-    @openTest="activeTest = $event"
     @closeTest="activeTest = null"
     @deleteTest="handleDeleteTest"
+
+    :savedReports="savedReports"
+    :activeReport="activeReport"
+    @generateReport="handleGenerateReport"
+    @openReport="activeReport = $event"
+    @closeReport="activeReport = null"
+    @deleteReport="handleDeleteReport"
   />
 </template>
 
@@ -53,6 +57,8 @@ export default {
       activeDiagram: null, // Diagrama actualment obert
       savedTests: [],
       activeTest: null,
+      savedReports: [],
+      activeReport: null,
       isLoading: false
     };
   },
@@ -85,6 +91,12 @@ export default {
           id: r.id,
           date: r.date,
           questions: JSON.parse(r.contingut) // Parse JSON string
+        }));
+
+        this.savedReports = results.filter(r => r.tipus === 'informe').map(r => ({
+          id: r.id,
+          date: r.date,
+          text: r.contingut
         }));
 
       } catch (err) {
@@ -165,6 +177,7 @@ export default {
     },
 
     async handleGenerateDiagram(documentIds) {
+      this.isLoading = true;
       try {
         const res = await api.post(`/carpeta/${this.carpeta.id}/diagrama`, { documentIds });
         
@@ -175,11 +188,11 @@ export default {
         };
         
         this.savedDiagrams.unshift(newDiagram);
-        // this.activeDiagram = newDiagram; // Don't auto-open
-        console.log("MiddleWare: Diagram generated (not opened):", newDiagram);
       } catch (err) {
         console.error("Error generant diagrama:", err);
-        alert("Error generant el diagrama. Comprova la consola.");
+        alert("Error generant el diagrama.");
+      } finally {
+        this.isLoading = false;
       }
     },
 
@@ -236,6 +249,37 @@ export default {
         }
       } catch (err) {
         console.error("Error eliminant test:", err);
+      }
+    },
+
+    async handleGenerateReport(documentIds) {
+      this.isLoading = true;
+      try {
+        const res = await api.post(`/carpeta/${this.carpeta.id}/informe`, { documentIds });
+        const newReport = {
+          id: res.data.result.id,
+          text: res.data.result.contingut,
+          date: res.data.result.date
+        };
+        this.savedReports.unshift(newReport);
+      } catch (err) {
+        console.error("Error generant informe:", err);
+        alert("Error generant l'informe via IA.");
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async handleDeleteReport(reportId) {
+      if (!confirm("Segur que vols eliminar aquest informe?")) return;
+      try {
+        await api.delete(`/carpeta/${this.carpeta.id}/resultats/${reportId}`);
+        this.savedReports = this.savedReports.filter(r => r.id !== reportId);
+        if (this.activeReport && this.activeReport.id === reportId) {
+          this.activeReport = null;
+        }
+      } catch (err) {
+        console.error("Error eliminant informe:", err);
       }
     }
   }

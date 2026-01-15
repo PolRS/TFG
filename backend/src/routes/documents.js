@@ -5,7 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { llistaDocuments, afegeixDocument, eliminaDocument } from "../controllers/documentsController.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
-import { generarResum, generarDiagrama, getResultats, eliminaResultat, getDocument, generarTest } from "../controllers/documentsController.js";
+import { generarResum, generarDiagrama, getResultats, eliminaResultat, getDocument, generarTest, generarInforme } from "../controllers/documentsController.js";
 
 const router = express.Router();
 
@@ -53,6 +53,8 @@ router.post("/:carpetaId/resum", generarResum);
 router.post("/:carpetaId/diagrama", generarDiagrama);
 // Generar Test
 router.post("/:carpetaId/test", generarTest);
+// Generar Informe
+router.post("/:carpetaId/informe", generarInforme);
 
 // Obtenir Resultats Guardats
 router.get("/:carpetaId/resultats", getResultats);

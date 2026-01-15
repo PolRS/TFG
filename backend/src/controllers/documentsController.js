@@ -195,3 +195,29 @@ export async function generarTest(req, res) {
     res.status(500).json({ error: "Error generant el test." });
   }
 }
+
+export async function generarInforme(req, res) {
+  try {
+    const userId = req.user.id;
+    const { carpetaId } = req.params;
+    const { documentIds } = req.body;
+
+    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+      return res.status(400).json({ error: "No s'han proporcionat documents." });
+    }
+
+    const documents = await documentsService.getContentFromDocuments(userId, documentIds);
+    if (documents.length === 0) {
+      return res.status(404).json({ error: "No s'han trobat els documents." });
+    }
+
+    const informe = await llmService.generateReport(documents);
+
+    const savedResult = await documentsService.saveResult(carpetaId, 'informe', informe);
+
+    res.json({ result: savedResult });
+  } catch (err) {
+    console.error("Error generant informe:", err);
+    res.status(500).json({ error: "Error generant l'informe." });
+  }
+}

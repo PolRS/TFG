@@ -6,11 +6,18 @@ import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import * as ragService from "./ragService.js";
 import officeParser from "officeparser";
 
+/**
+ * Extracts text content from a file based on its mimetype and extension.
+ * Supports PDF, DOCX, PPTX, and plain text formats.
+ * @param {string} filePath - Absolute path to the file
+ * @param {string} mimetype - Mime type of the file
+ * @returns {Promise<string>} Extracted text content
+ */
 async function extractContentText(filePath, mimetype) {
   try {
     let extension = path.extname(filePath).toLowerCase();
 
-    // Si el mimetype és genèric, intentem detectar-lo millor amb 'file'
+    // If mimetype is generic binary, attempt a more specific detection using the OS 'file' command
     if (mimetype === "application/octet-stream") {
       const realMime = await detectRealMimeType(filePath);
       if (realMime) {
@@ -28,19 +35,19 @@ async function extractContentText(filePath, mimetype) {
       extension === ".pptx" ||
       extension === ".ppt";
 
-    // 1) Text pla
+    // Text pla
     if (mimetype.startsWith("text/") || extension === ".txt" || extension === ".md" || extension === ".csv") {
       return await fs.readFile(filePath, "utf8");
     }
 
-    // 2) PDF (PDF.js)
+    // PDF (PDF.js)
     if (isPdf) {
       const buffer = await fs.readFile(filePath);
       const text = await extractTextFromPdf(buffer);
       return text || "";
     }
 
-    // 3) DOCX
+    // DOCX
     if (
       mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       extension === ".docx"
@@ -50,7 +57,7 @@ async function extractContentText(filePath, mimetype) {
       return result.value || "";
     }
 
-    // 4) PPTX (officeparser)
+    // PPTX (officeparser)
     if (isPptx) {
       try {
         const text = await officeParser.parseOfficeAsync(filePath);
@@ -61,7 +68,7 @@ async function extractContentText(filePath, mimetype) {
       }
     }
 
-    // 5) Altres formats -> buit sense OCR
+    // Unsupported formats return empty string to avoid crashing
     console.warn(`Format no suportat per a extracció de text: ${mimetype} (${extension})`);
     return "";
   } catch (err) {
@@ -72,8 +79,13 @@ async function extractContentText(filePath, mimetype) {
 
 
 
+/**
+ * Reads a PDF buffer and extracts text page by page using PDF.js.
+ * @param {Buffer} buffer - File buffer
+ * @returns {Promise<string>} Concatenated text from all pages
+ */
 async function extractTextFromPdf(buffer) {
-  const uint8 = new Uint8Array(buffer); // ✅ Buffer -> Uint8Array
+  const uint8 = new Uint8Array(buffer);
 
   const loadingTask = pdfjsLib.getDocument({ data: uint8 });
   const pdf = await loadingTask.promise;
@@ -143,6 +155,10 @@ export async function getDocumentsByCarpeta(userId, carpetaId) {
   return rows;
 }
 
+/**
+ * Retrieves content for RAG context generation.
+ * Ensures the documents belong to the user.
+ */
 export async function getContentFromDocuments(userId, documentIds) {
   // Assegurar que els documents pertanyen a l'usuari (via carpetes linkades o directament)
   // Per simplificar, assumim comprovació de propietat bàsica o confiem en la query
@@ -160,13 +176,19 @@ export async function getContentFromDocuments(userId, documentIds) {
   return rows; // Retorna array d'objectes { id, nom, content_text }
 }
 
+/**
+ * Creates a new document record, extracts text, links it to a folder,
+ * and initiates background embedding generation.
+ * @param {number} carpetaId - Target folder ID
+ * @param {object} file - File object from Multer
+ */
 export async function creaDocument(carpetaId, file) {
   const { originalname, mimetype, size, path: filePath } = file;
 
-  // 1) Extreure text per guardar-lo a content_text
+  // Extreure text per guardar-lo a content_text
   const contentText = await extractContentText(filePath, mimetype);
 
-  // 2) Inserim el document (ara també content_text)
+  // Inserim el document (ara també content_text)
   const insertDocQuery = `
     INSERT INTO documents (nom, tipus, mida, path, content_text)
     VALUES ($1, $2, $3, $4, $5)
@@ -177,14 +199,14 @@ export async function creaDocument(carpetaId, file) {
   const { rows: docRows } = await pool.query(insertDocQuery, docValues);
   const document = docRows[0];
 
-  // 3) Inserim la relació carpeta-document
+  // Inserim la relació carpeta-document
   const linkQuery = `
     INSERT INTO carpetes_documents (carpeta_id, document_id)
     VALUES ($1, $2)
   `;
   await pool.query(linkQuery, [carpetaId, document.id]);
 
-  // 4) Generar Embeddings (RAG) en segon pla
+  // Generar Embeddings (RAG) en segon pla
   try {
     if (contentText && contentText.length > 0) {
       // No fem await per no bloquejar la resposta al frontend
@@ -199,6 +221,10 @@ export async function creaDocument(carpetaId, file) {
   return document;
 }
 
+/**
+ * Deletes a document from a specific folder.
+ * If the document is not linked to any other folders, it is physically deleted.
+ */
 export async function eliminaDocument(userId, carpetaId, documentId) {
   const client = await pool.connect();
 

@@ -146,3 +146,37 @@ export async function generateTest(documents) {
     throw error;
   }
 }
+
+/**
+ * Generates a comprehensive and professional report based on the provided documents.
+ * @param {Array} documents - Array of document objects { nom, content_text }
+ * @returns {Promise<string>} Markdown-formatted report
+ */
+export async function generateReport(documents) {
+  let instructions = `
+    Actua com un analista expert. Genera un INFORME detallat, exhaustiu i professional basat en els documents proporcionats.
+    L'informe ha de ser coherent, ben estructurat i integrar la informació de tots els fitxers.
+    
+    ESTRUCTURA DE L'INFORME:
+    1. Resum Executiu (Breu visió general).
+    2. Troballes Clau (Punts més importants detectats).
+    3. Anàlisi Detallat (Desenvolupament per temàtiques o seccions).
+    4. Conclusions i Recomanacions.
+
+    Fes servir format Markdown per a títols, negretes, taules (si escau) i llistes.
+    Si hi ha dades contradictòries o mancances en els documents, comenta-ho.
+  `;
+
+  let context = "";
+  documents.forEach((doc, index) => {
+    context += `\n--- DOCUMENT ${index + 1}: ${doc.nom} ---\n${doc.content_text || "(Sense text)"}\n`;
+  });
+
+  if (context.length > 50000) {
+    context = context.substring(0, 50000) + "\n...(context truncat per límits de tokens)...";
+  }
+
+  const prompt = "Genera l'informe professional complet seguint l'estructura definida.";
+
+  return await callLLM(prompt, instructions + "\n\n" + context);
+}

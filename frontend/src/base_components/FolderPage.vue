@@ -1,7 +1,7 @@
 <template>
   <div class="folder">
 
-    <!-- TOPBAR (igual que HomePage) -->
+    <!-- TOPBAR -->
     <header class="topbar">
       <div class="user-info">
         <img :src="user.avatar_url" alt="Profile" class="avatar" />
@@ -96,12 +96,15 @@
           <button class="tool-btn" @click="requestTest">
              🧠 Generar Test
           </button>
+          <button class="tool-btn" @click="requestReport">
+             📋 Generar Informe
+          </button>
         </div>
 
         <div class="results-section">
           <h3>Resultats Guardats</h3>
           
-          <div v-if="savedSummaries.length === 0 && savedDiagrams.length === 0 && savedTests.length === 0" class="no-results">
+          <div v-if="savedSummaries.length === 0 && savedDiagrams.length === 0 && savedTests.length === 0 && savedReports.length === 0" class="no-results">
             Cap resultat guardat.
           </div>
 
@@ -120,7 +123,7 @@
                 </span>
                 <button class="remove-btn" @click.stop="$emit('deleteSummary', summary.id)">🗑️</button>
              </li>
-
+ 
              <!-- Diagrams -->
              <li 
                 v-for="diagram in savedDiagrams" 
@@ -149,6 +152,21 @@
                    <span class="result-date">{{ test.date }}</span>
                 </span>
                 <button class="remove-btn" @click.stop="$emit('deleteTest', test.id)">🗑️</button>
+             </li>
+
+             <!-- Reports -->
+             <li 
+                v-for="report in savedReports" 
+                :key="'r-'+report.id"
+                @click="$emit('openReport', report)"
+                class="result-item"
+              >
+                <span class="result-icon">📋</span>
+                <span class="result-info">
+                   <span class="result-title">Informe</span>
+                   <span class="result-date">{{ report.date }}</span>
+                </span>
+                <button class="remove-btn" @click.stop="$emit('deleteReport', report.id)">🗑️</button>
              </li>
           </ul>
         </div>
@@ -179,9 +197,25 @@
             </div>
           </div>
           <div class="summary-content diagram-content" ref="diagramContainer">
-             <!-- DEBUG: Showing length to verify content -->
-             <div v-if="renderedDiagram.length === 0" style="color:gray; padding:10px;">Renderitzant...</div>
-             <div class="mermaid" v-html="renderedDiagram"></div>
+             <div v-if="isRendering" class="diagram-status">
+               <span class="spinner-small"></span> Renderitzant diagrama...
+             </div>
+             <div v-if="renderingError" class="diagram-status error">
+               <p><strong>⚠️ Error:</strong> {{ renderingError }}</p>
+               <button @click="renderMermaid(activeDiagram?.code)" class="retry-link">Reintentar</button>
+             </div>
+             
+             <!-- Diagram output -->
+             <div 
+               v-show="!isRendering && renderedDiagram"
+               class="mermaid-viewer" 
+               v-html="renderedDiagram"
+               :key="activeDiagram?.id"
+             ></div>
+
+             <div v-if="!isRendering && !renderedDiagram && !renderingError" class="diagram-status">
+                Selecciona un diagrama per visualitzar-lo.
+             </div>
           </div>
           <div class="summary-actions">
             <button class="download-btn-small" @click="downloadDiagram('svg')">📥 SVG</button>
@@ -214,6 +248,20 @@
             </div>
           </div>
 
+        <!-- Report Panel -->
+        <div v-if="activeReport" class="summary-panel-embedded">
+          <div class="summary-header">
+            <h4>Informe ({{ activeReport.date }})</h4>
+            <button class="close-btn" @click="$emit('closeReport')">✖</button>
+          </div>
+          <div class="summary-content">
+            <pre>{{ activeReport.text }}</pre>
+          </div>
+          <div class="summary-actions">
+            <button class="download-btn-small" @click="downloadReport">📥 Descarregar</button>
+          </div>
+        </div>
+
       </aside>
     </div>
 
@@ -245,19 +293,29 @@
     <!-- Summary Modal / Panel moved inside sidebar structure -->
     <!-- (Removed from here) -->
 
+    <!-- Hidden container for Mermaid rendering -->
+    <div id="mermaid-render-container" style="position: fixed; top: -1000px; left: -1000px; visibility: hidden; pointer-events: none;"></div>
+
   </div>
 </template>
 
 <script>
-import DocumentChat from "@/components/DocumentChat.vue"
+import DocumentChatMiddleware from "@/components/DocumentChatMiddleware.vue"
 import mermaid from "mermaid";
 
-mermaid.initialize({ startOnLoad: false, theme: 'default' });
-
+// Note: initialization moved inside the component for better control if needed, 
+// but we keep this as a default.
+// Note: Mermaid v10+ initialization
+mermaid.initialize({ 
+  startOnLoad: false, 
+  theme: 'default',
+  securityLevel: 'loose',
+  fontFamily: 'inherit'
+});
 export default {
   name: "FolderPage",
   components: {
-    DocumentChat
+    DocumentChat: DocumentChatMiddleware
   },
   props: {
     user: { type: Object, required: true },
@@ -271,12 +329,16 @@ export default {
     activeDiagram: { type: Object, required: false, default: null },
     fetchDocumentContent: { type: Function, required: true },
     savedTests: { type: Array, required: false, default: () => [] },
-    activeTest: { type: Object, required: false, default: null }
+    activeTest: { type: Object, required: false, default: null },
+    savedReports: { type: Array, required: false, default: () => [] },
+    activeReport: { type: Object, required: false, default: null }
   },
 
   data() {
     return {
       renderedDiagram: "",
+      isRendering: false,
+      renderingError: null,
       isDiagramFullscreen: false,
       zoomScale: 1,
       panX: 0,
@@ -293,16 +355,41 @@ export default {
       testAnswers: {} // map questionIndex -> optionIndex
     };
   },
+  mounted() {
+    // Ensure mermaid is initialized correctly on the client side
+    try {
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose',
+        fontFamily: 'inherit'
+      });
+      console.log("FolderPage: Mermaid initialized in mounted()");
+    } catch (e) {
+      console.error("FolderPage: Mermaid init error", e);
+    }
+  },
   watch: {
     activeDiagram: {
       immediate: true,
-      async handler(newVal) {
-        console.log("FolderPage: Watch activeDiagram triggered:", newVal);
+      handler(newVal) {
+        console.log("FolderPage Watch: activeDiagram changed", newVal ? newVal.id : 'null');
         if (newVal) {
-          await this.renderMermaid(newVal.code);
+          // Reset before rendering
+          this.renderedDiagram = "";
+          this.isRendering = true;
+          this.$nextTick(() => {
+            this.renderMermaid(newVal.code);
+          });
         } else {
           this.renderedDiagram = "";
+          this.isRendering = false;
         }
+      }
+    },
+    activeTest(newVal) {
+      if (newVal) {
+        this.resetTest();
       }
     }
   },
@@ -321,6 +408,9 @@ export default {
       }
       this.$emit('generateDiagram', this.selectedDocuments.map(d => d.id));
     },
+    /**
+     * Downloads the current summary as a text file.
+     */
     downloadSummary() {
       if (!this.activeSummary) return;
       const blob = new Blob([this.activeSummary.text], { type: "text/plain" });
@@ -334,39 +424,70 @@ export default {
       URL.revokeObjectURL(url);
     },
     async renderMermaid(code) {
-      if (!code) return;
+      if (!code) {
+        this.renderedDiagram = "";
+        this.isRendering = false;
+        return;
+      }
+
+      console.log("FolderPage: Starting renderMermaid...");
+      this.isRendering = true;
+      this.renderingError = null;
+      // Keep old diagram while rendering to avoid white flashes, 
+      // but if it's been problematic, clearing it is safer for debugging.
+      this.renderedDiagram = ""; 
+
       try {
-        const { svg } = await mermaid.render('mermaid-graph-' + Date.now(), code);
+        // ID must start with a letter for Mermaid
+        const id = 'mermaid_svg_' + Math.random().toString(36).substring(2, 10);
         
-        // Safer approach: Only modify the opening <svg> tag
-        let cleanSvg = svg.replace(/<svg([^>]*)>/, (match, attributes) => {
-          // Remove width, height, and style from the attributes part ONLY of the root tag
-          let newAttrs = attributes
-            .replace(/width="[^"]*"/g, "")
-            .replace(/height="[^"]*"/g, "")
-            .replace(/style="[^"]*"/g, ""); // Remove style completely from root
-          
-          return `<svg${newAttrs} style="width: 100%; height: 100%; pointer-events: none;">`;
-        });
+        // We need an element in the DOM for Mermaid to work reliably in some versions
+        let container = document.getElementById('mermaid-render-container');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'mermaid-render-container';
+          container.style.display = 'none';
+          document.body.appendChild(container);
+        }
+
+        console.log("FolderPage: Calling mermaid.render with", id);
+        
+        // Mermaid v10+ render returns { svg, bindFunctions }
+        const { svg } = await mermaid.render(id, code, container);
+
+        if (!svg) throw new Error("Resultat buit de Mermaid");
+
+        console.log("FolderPage: Render success. Length:", svg.length);
+
+        // Responsive SVG: Remove fixed width/height and add style
+        // We do it more carefully to not break the XML
+        let cleanSvg = svg;
+        const svgTagMatch = cleanSvg.match(/<svg[^>]*>/);
+        if (svgTagMatch) {
+          let svgTag = svgTagMatch[0];
+          const newSvgTag = svgTag
+            .replace(/\s(width|height|style)=["'][^"']*["']/g, '')
+            .replace(/<svg/, '<svg style="max-width:100%; height:auto; display:block; margin:0 auto;"');
+          cleanSvg = cleanSvg.replace(svgTag, newSvgTag);
+        }
 
         this.renderedDiagram = cleanSvg;
-        
-        // Reset zoom state
         this.zoomScale = 1;
         this.panX = 0;
         this.panY = 0;
+
       } catch (err) {
-        console.error("Mermaid error:", err);
-        this.renderedDiagram = `<div style="color:red">Error renderitzant diagrama: ${err.message}</div>`;
+        console.error("FolderPage: Mermaid Render Error:", err);
+        this.renderingError = "Error al renderitzar: " + (err.message || "format no vàlid");
+      } finally {
+        this.isRendering = false;
       }
     },
     downloadDiagram(format) {
       if (!this.activeDiagram) return;
-      
       let content, type, ext;
-      
       if (format === 'svg') {
-        content = this.renderedDiagram; // The SVG HTML string
+        content = this.renderedDiagram;
         type = "image/svg+xml";
         ext = "svg";
       } else {
@@ -374,12 +495,11 @@ export default {
         type = "text/plain";
         ext = "mmd";
       }
-
       const blob = new Blob([content], { type });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `diagrama_${this.carpeta.nom}_${this.activeDiagram.date.replace(/:/g, '-')}.${ext}`;
+      a.download = `diagrama_${this.carpeta.nom}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -387,6 +507,7 @@ export default {
     },
     
     // --- Pan & Zoom Logic ---
+    // Handles mouse wheel to zoom in/out of the diagram
     handleWheel(e) {
       e.preventDefault();
       const scaleAmount = 0.1;
@@ -439,6 +560,28 @@ export default {
       }
       this.$emit('generateTest', this.selectedDocuments.map(d => d.id));
     },
+    requestReport() {
+      if (this.selectedDocuments.length === 0) {
+        alert("Selecciona almenys un document per generar un informe.");
+        return;
+      }
+      this.$emit('generateReport', this.selectedDocuments.map(d => d.id));
+    },
+    /**
+     * Downloads the current report as a text file.
+     */
+    downloadReport() {
+      if (!this.activeReport) return;
+      const blob = new Blob([this.activeReport.text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `informe_${this.carpeta.nom}_${this.activeReport.date.replace(/:/g, '-')}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
     selectOption(questionIndex, optionIndex) {
       // Use Vue.set or spread to ensure reactivity if needed, but in basic Vue 3 reactivity proxy works.
       // In Vue 2: this.$set(this.testAnswers, questionIndex, optionIndex);
@@ -460,13 +603,7 @@ export default {
       this.testAnswers = {};
     }
   },
-  watch: {
-    activeTest(newVal) {
-      if (newVal) {
-        this.resetTest();
-      }
-    }
-  }
+
 };
 </script>
 
@@ -477,7 +614,7 @@ export default {
   height: 100vh;
 }
 
-/* 🔵 TOPBAR */
+/* TOPBAR */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -533,7 +670,7 @@ export default {
   flex: 1;
 }
 
-/* 🔵 Sidebar */
+/* Sidebar */
 .sidebar {
   background: #f8fafc;
   border-right: 1px solid #e2e8f0;
@@ -649,7 +786,7 @@ export default {
   cursor: pointer;
 }
 
-/* 🔵 Chat panel */
+/* Chat panel */
 .chat-panel {
   padding: 1rem;
   border-right: 1px solid #e2e8f0;
@@ -665,7 +802,7 @@ export default {
   text-align: center;
 }
 
-/* 🔵 Options panel */
+/* Options panel */
 .options-panel {
   background: #f9fafb;
   padding: 1rem;
@@ -675,7 +812,7 @@ export default {
   flex-direction: column;
 }
 
-/* 🔵 Summary Panel Embedded */
+/* Summary Panel Embedded */
 .summary-panel-embedded {
   margin-top: 1rem;
   background: white;
@@ -729,6 +866,16 @@ export default {
   padding: 0.5rem;
   margin: 0;
   color: #334155;
+}
+
+.diagram-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  min-height: 300px;
+  overflow: hidden;
 }
 
 .download-btn-small {
@@ -1051,5 +1198,62 @@ export default {
   width: 100% !important;
   height: auto !important;
   max-width: none !important;
+}
+
+.diagram-status {
+  padding: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.diagram-status.rendering {
+  color: #3b82f6;
+  font-style: italic;
+}
+
+.diagram-status.error {
+  color: #ef4444;
+  background: #fef2f2;
+  border-radius: 8px;
+  margin: 10px;
+}
+
+.diagram-status.empty {
+  color: #94a3b8;
+}
+
+.mermaid-viewer {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner-small {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.retry-link {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-top: 5px;
 }
 </style>
