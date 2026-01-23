@@ -304,15 +304,15 @@ export async function getDocumentInCarpeta(carpetaId, documentId) {
   return rows[0] || null;
 }
 
-export async function saveResult(carpetaId, tipus, contingut) {
+export async function saveResult(carpetaId, tipus, contingut, fonts = []) {
   const client = await pool.connect();
   try {
     const query = `
-      INSERT INTO resultats_ia (carpeta_id, tipus, contingut)
-      VALUES ($1, $2, $3)
-      RETURNING id, tipus, contingut, to_char(data_creacio, 'DD/MM/YYYY HH24:MI') as date
+      INSERT INTO resultats_ia (carpeta_id, tipus, contingut, fonts)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, tipus, contingut, fonts, to_char(data_creacio, 'DD/MM/YYYY HH24:MI') as date
     `;
-    const { rows } = await client.query(query, [carpetaId, tipus, contingut]);
+    const { rows } = await client.query(query, [carpetaId, tipus, contingut, JSON.stringify(fonts)]);
     return rows[0];
   } catch (err) {
     console.error("Error saving result:", err);
@@ -326,7 +326,7 @@ export async function getResultsByCarpeta(carpetaId) {
   const client = await pool.connect();
   try {
     const query = `
-      SELECT id, tipus, contingut, to_char(data_creacio, 'DD/MM/YYYY HH24:MI') as date
+      SELECT id, tipus, contingut, fonts, to_char(data_creacio, 'DD/MM/YYYY HH24:MI') as date
       FROM resultats_ia
       WHERE carpeta_id = $1
       ORDER BY data_creacio DESC

@@ -81,25 +81,29 @@ export default {
         this.savedSummaries = results.filter(r => r.tipus === 'resum').map(r => ({
           id: r.id,
           date: r.date,
-          text: r.contingut
+          text: r.contingut,
+          fonts: r.fonts || []
         }));
 
         this.savedDiagrams = results.filter(r => r.tipus === 'diagrama').map(r => ({
           id: r.id,
           date: r.date,
-          code: r.contingut
+          code: r.contingut,
+          fonts: r.fonts || []
         }));
         
         this.savedTests = results.filter(r => r.tipus === 'test').map(r => ({
           id: r.id,
           date: r.date,
-          questions: JSON.parse(r.contingut) // Parse JSON string
+          questions: JSON.parse(r.contingut), // Parse JSON string
+          fonts: r.fonts || []
         }));
 
         this.savedReports = results.filter(r => r.tipus === 'informe').map(r => ({
           id: r.id,
           date: r.date,
-          text: r.contingut
+          text: r.contingut,
+          fonts: r.fonts || []
         }));
 
       } catch (err) {
@@ -153,7 +157,8 @@ export default {
         const newSummary = {
           id: res.data.result.id,
           text: res.data.result.contingut,
-          date: res.data.result.date
+          date: res.data.result.date,
+          fonts: res.data.result.fonts || []
         };
         
         this.savedSummaries.unshift(newSummary);
@@ -187,7 +192,8 @@ export default {
         const newDiagram = {
           id: res.data.result.id,
           code: res.data.result.contingut,
-          date: res.data.result.date
+          date: res.data.result.date,
+          fonts: res.data.result.fonts || []
         };
         
         this.savedDiagrams.unshift(newDiagram);
@@ -230,7 +236,8 @@ export default {
         const newTest = {
           id: res.data.result.id,
           date: res.data.result.date,
-          questions: JSON.parse(res.data.result.contingut)
+          questions: JSON.parse(res.data.result.contingut),
+          fonts: res.data.result.fonts || []
         };
         this.savedTests.unshift(newTest);
         // this.activeTest = newTest; // Don't auto-open
@@ -262,7 +269,8 @@ export default {
         const newReport = {
           id: res.data.result.id,
           text: res.data.result.contingut,
-          date: res.data.result.date
+          date: res.data.result.date,
+          fonts: res.data.result.fonts || []
         };
         this.savedReports.unshift(newReport);
       } catch (err) {

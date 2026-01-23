@@ -81,8 +81,10 @@ export async function generarResum(req, res) {
     // 2. Generar resum amb LLM
     const resum = await llmService.generateSummary(documents);
 
+    const fonts = documents.map(d => d.nom);
+
     // 3. Guardar a la DB
-    const savedResult = await documentsService.saveResult(carpetaId, 'resum', resum);
+    const savedResult = await documentsService.saveResult(carpetaId, 'resum', resum, fonts);
 
     // 4. Retornar resultat
     res.json({ result: savedResult });
@@ -112,8 +114,10 @@ export async function generarDiagrama(req, res) {
     let diagrama = await llmService.generateDiagram(documents);
     diagrama = diagrama.replace(/```mermaid/g, "").replace(/```/g, "").trim();
 
+    const fonts = documents.map(d => d.nom);
+
     // Guardar a la DB
-    const savedResult = await documentsService.saveResult(carpetaId, 'diagrama', diagrama);
+    const savedResult = await documentsService.saveResult(carpetaId, 'diagrama', diagrama, fonts);
 
     res.json({ result: savedResult });
 
@@ -186,8 +190,10 @@ export async function generarTest(req, res) {
     // Generar JSON del test
     const testJson = await llmService.generateTest(documents);
 
+    const fonts = documents.map(d => d.nom);
+
     // Guardar a la DB (tipus='test')
-    const savedResult = await documentsService.saveResult(carpetaId, 'test', testJson);
+    const savedResult = await documentsService.saveResult(carpetaId, 'test', testJson, fonts);
 
     res.json({ result: savedResult });
   } catch (err) {
@@ -213,7 +219,9 @@ export async function generarInforme(req, res) {
 
     const informe = await llmService.generateReport(documents);
 
-    const savedResult = await documentsService.saveResult(carpetaId, 'informe', informe);
+    const fonts = documents.map(d => d.nom);
+
+    const savedResult = await documentsService.saveResult(carpetaId, 'informe', informe, fonts);
 
     res.json({ result: savedResult });
   } catch (err) {

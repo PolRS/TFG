@@ -7,9 +7,15 @@ import * as documentsService from "./documentsService.js";
  */
 export async function getCarpetesByUserId(userId) {
   const query = `
-    SELECT c.id, c.nom, c.data_creacio
+    SELECT 
+      c.id, 
+      c.nom, 
+      c.data_creacio,
+      COUNT(cd.document_id)::int AS "docCount"
     FROM carpetes AS c
+    LEFT JOIN carpetes_documents AS cd ON c.id = cd.carpeta_id
     WHERE c.user_id = $1
+    GROUP BY c.id
     ORDER BY c.data_creacio DESC
   `;
   const { rows } = await pool.query(query, [userId]);

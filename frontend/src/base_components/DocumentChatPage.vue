@@ -1,11 +1,13 @@
 <template>
   <div class="doc-chat">
-    <h2>Consultant: {{ titleDisplay }}</h2>
-    <div class="subtitle" v-if="documentTitles.length > 1">
-        <small>{{ documentTitles.join(', ') }}</small>
+    <div class="chat-header">
+      <h2>{{ titleDisplay }}</h2>
+      <div class="subtitle" v-if="documentTitles.length > 1">
+          <small>{{ documentTitles.join(', ') }}</small>
+      </div>
     </div>
 
-    <div class="messages">
+    <div class="messages" ref="messageContainer">
       <div
         v-for="(msg, index) in messages"
         :key="msg.id ?? index"
@@ -26,10 +28,18 @@
             <span class="sources-title">Fonts:</span>
             <ul class="sources-list">
               <li v-for="(s, i) in msg.sources" :key="i">
-                {{ s.nom }} (id: {{ s.documentId }})
+                {{ s.nom }}
               </li>
             </ul>
           </div>
+        </div>
+      </div>
+
+      <!-- Thinking indicator -->
+      <div v-if="loading" class="message assistant thinking">
+        <div class="bubble">
+          <span class="role-label">IA</span>
+          <p class="content thinking-text">Pensant...</p>
         </div>
       </div>
     </div>
@@ -38,16 +48,18 @@
       <textarea
         v-model="question"
         placeholder="Escriu una pregunta sobre el document..."
-        rows="3"
+        rows="1"
         @keydown="handleKeydown"
+        :disabled="loading"
       ></textarea>
 
-      <button :disabled="loading || !question.trim()" @click="sendQuestion">
-        {{ loading ? "Consultant..." : "Preguntar" }}
+      <button :disabled="loading || !question.trim()" @click="sendQuestion" class="send-btn">
+        <span v-if="!loading">Preguntar</span>
+        <span v-else class="spinner-btn"></span>
       </button>
     </div>
 
-    <p v-if="error" class="error">{{ error }}</p>
+    <p v-if="error" class="error-msg">{{ error }}</p>
   </div>
 </template>
 
@@ -71,9 +83,22 @@ export default {
             return `${this.documentTitles.length} documents`;
         }
     },
+    watch: {
+        messages: {
+            handler() {
+                this.scrollToBottom();
+            },
+            deep: true
+        },
+        loading(newVal) {
+            if (newVal) {
+                this.scrollToBottom();
+            }
+        }
+    },
     methods: {
         sendQuestion() {
-            if (!this.question.trim()) return;
+            if (!this.question.trim() || this.loading) return;
             this.$emit('sendMessage', this.question);
             this.question = "";
         },
@@ -83,6 +108,14 @@ export default {
                 e.preventDefault();
                 this.sendQuestion();
             }
+        },
+        scrollToBottom() {
+            this.$nextTick(() => {
+                const container = this.$refs.messageContainer;
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            });
         }
     }
 }
@@ -92,49 +125,79 @@ export default {
 .doc-chat {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   height: 100%;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  min-height: 0;
+}
+
+.chat-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.chat-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 
 .messages {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #f9fafb;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--bg-sidebar);
 }
 
 .message {
   display: flex;
-  margin-bottom: 8px;
+  width: 100%;
 }
 
 .message.user { justify-content: flex-end; }
 .message.assistant { justify-content: flex-start; }
 
 .bubble {
-  max-width: 75%;
-  padding: 8px 10px;
-  border-radius: 12px;
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  position: relative;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .message.user .bubble {
-  background: #3b82f6;
+  background: var(--text-accent);
   color: white;
-  border-bottom-right-radius: 2px;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
 
 .message.assistant .bubble {
-  background: #e5e7eb;
-  border-bottom-left-radius: 2px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
 }
 
 .role-label {
   display: block;
-  font-size: 0.75rem;
-  opacity: 0.8;
-  margin-bottom: 2px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  opacity: 0.7;
 }
 
 .content {
@@ -142,53 +205,122 @@ export default {
   white-space: pre-wrap;
 }
 
+.thinking-text {
+  font-style: italic;
+  color: var(--text-secondary);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
 .sources {
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(0,0,0,0.1);
-  font-size: 0.85rem;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.8rem;
 }
 
 .sources-title {
   font-weight: 600;
-  display: inline-block;
+  color: var(--text-secondary);
   margin-bottom: 4px;
+  display: block;
 }
 
 .sources-list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sources-list li {
+  background: var(--bg-item-hover);
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--text-primary);
 }
 
 .input-area {
+  padding: 1.25rem;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  align-items: flex-end;
 }
 
 textarea {
-  width: 100%;
-  padding: 8px;
-  resize: vertical;
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--text-primary);
+  resize: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+  min-height: 48px;
+  max-height: 150px;
 }
 
-button {
-  align-self: flex-end;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  background: #2563eb;
+textarea:focus {
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.send-btn {
+  background: var(--text-accent);
   color: white;
+  border: none;
+  width: 100px;
+  height: 48px;
+  border-radius: 12px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-button[disabled] {
-  opacity: 0.6;
-  cursor: default;
+.send-btn:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
 }
 
-.error {
-  color: red;
-  font-size: 0.9rem;
+.send-btn:disabled {
+  background: var(--bg-item-hover);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.spinner-btn {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-msg {
+  padding: 0 1.25rem 1.25rem;
+  margin: 0;
+  color: #fb7185;
+  font-size: 0.85rem;
+  text-align: center;
 }
 </style>

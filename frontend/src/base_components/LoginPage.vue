@@ -27,22 +27,25 @@ export default {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background-color: #f3f4f6;
+  background-color: var(--bg-color);
 }
 
 .login-card {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  width: 24rem;
+  background-color: var(--bg-secondary);
+  padding: 2.5rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  width: 26rem;
   text-align: center;
+  border: 1px solid var(--border-color);
 }
 
 .login-card h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
 }
 
 .google-button {
