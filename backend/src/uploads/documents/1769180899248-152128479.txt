@@ -1,3 +1,0 @@
-fer video/demo
-
-intro (obj projecte), estat de l'art, arquitectura  (frontend, base dd, backend i tecnologies i posibles api ia), resultats (captura aplicacio, interficie, eines, chat), discusio resultats (si s'han assolit objectius, critica propis resultats, comparacio amb googlelm), conclusions, metodologia i planificacio.
