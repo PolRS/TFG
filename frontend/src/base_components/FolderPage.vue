@@ -1330,13 +1330,13 @@ export default {
 .question-block {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .question-text {
   font-size: 1rem;
   margin-bottom: 0.5rem;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .options-list {
@@ -1368,16 +1368,16 @@ export default {
 }
 
 .correct-option {
-  background-color: #dcfce7 !important;
+  background-color: rgba(34, 197, 94, 0.2) !important;
   border-color: #22c55e !important;
-  color: #15803d !important;
+  color: #4ade80 !important;
   font-weight: bold;
 }
 
 .incorrect-option {
-  background-color: #fee2e2 !important;
+  background-color: rgba(239, 68, 68, 0.2) !important;
   border-color: #ef4444 !important;
-  color: #b91c1c !important;
+  color: #f87171 !important;
 }
 
 
