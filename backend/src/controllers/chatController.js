@@ -57,67 +57,72 @@ export async function consultaDocument(req, res) {
     }
 
     // 2) Buscar context rellevant (RAG) filtrant pels documents seleccionats
-    // Passem els IDs vàlids a la funció de RAG
     const validDocIds = validDocs.map(d => d.id);
-    
-    // Si tenim text, busquem vectors semblants
-    const similarChunks = await searchSimilarContext(message, 5, validDocIds);
 
-    let context = "";
-    if (similarChunks.length > 0) {
-      context = similarChunks.map(c => c.content_chunk).join("\n\n---\n\n");
-    } else {
-        // Fallback: si no hi ha chunks rellevants, agafem una mica de text del primer document (com a exemple)
-        // O millor, deixem context buit i que l'LLM respongui amb el seu coneixement o digui que no ho sap.
-        // Per mantenir comportament anterior, si només hi ha 1 doc i no te chunks, agafem text.
-        if (validDocs.length === 1 && validDocs[0].content_text) {
-             context = validDocs[0].content_text.slice(0, 4000);
+    // INTENT DETECTION
+    const msgLower = message.toLowerCase();
+    const isSummary = /resum|summary|de què va|explica'm|explica|resumen/.test(msgLower);
+    const isReport = /informe|report/.test(msgLower);
+    const isTest = /test|examen|preguntes|preguntas/.test(msgLower);
+    const isDiagram = /diagrama|esquema|mermaid|mapa mental/.test(msgLower);
+
+    let answer = "";
+    let sources = [];
+    let similarChunks = [];
+
+    if (isSummary || isReport || isTest || isDiagram) {
+      // Use full text (limited) for specialized intents
+      const docsWithText = validDocs.filter(d => d.content_text);
+      if (docsWithText.length > 0) {
+        if (isSummary) {
+          answer = await callLLM("Genera un resum complet dels documents.", docsWithText.map(d => `--- ${d.nom} ---\n${d.content_text}`).join("\n\n").slice(0, 50000));
+        } else if (isReport) {
+          // We use the already defined generateReport but adapted for chat
+          answer = await callLLM("Genera un informe detallat dels documents seguint aquesta estructura: 1. Resum Executiu, 2. Troballes Clau, 3. Anàlisi Detallat, 4. Conclusions.", docsWithText.map(d => `--- ${d.nom} ---\n${d.content_text}`).join("\n\n").slice(0, 50000));
+        } else if (isTest) {
+          const testRaw = await callLLM("Genera 5 preguntes de test sobre el contingut.", docsWithText.map(d => `--- ${d.nom} ---\n${d.content_text}`).join("\n\n").slice(0, 50000));
+          answer = testRaw;
+        } else if (isDiagram) {
+          const diagRaw = await callLLM("Genera un diagrama Mermaid resumint el contingut. Retorna NOMÉS el codi.", docsWithText.map(d => `--- ${d.nom} ---\n${d.content_text}`).join("\n\n").slice(0, 50000));
+          answer = "Aquí tens un diagrama del contingut:\n\n```mermaid\n" + diagRaw.replace(/```mermaid/g, "").replace(/```/g, "").trim() + "\n```";
         }
+        sources = docsWithText.map(d => ({ documentId: d.id, nom: d.nom }));
+      } else {
+        answer = "Ho sento, no he trobat text als documents per processar la teva petició.";
+      }
+    } else {
+      // STANDARD RAG FLOW
+      similarChunks = await searchSimilarContext(message, 5, validDocIds);
+
+      let context = "";
+      if (similarChunks.length > 0) {
+        context = similarChunks.map(c => c.content_chunk).join("\n\n---\n\n");
+      } else {
+        if (validDocs.length === 1 && validDocs[0].content_text) {
+          context = validDocs[0].content_text.slice(0, 4000);
+        }
+      }
+
+      const docNames = validDocs.map(d => d.nom).join(", ");
+      const prompt = `DOCUMENTS: ${docNames}\n\nPREGUNTA:\n"${message}"\n\nRespon de forma clara i concisa basant-te en el context proporcionat si és rellevant.`;
+
+      answer = await callLLM(prompt, context);
+
+      if (similarChunks.length > 0) {
+        const usedDocIds = [...new Set(similarChunks.map(c => c.document_id))];
+        sources = validDocs.filter(d => usedDocIds.includes(d.id)).map(d => ({ documentId: d.id, nom: d.nom }));
+      } else if (validDocs.length === 1) {
+        sources = [{ documentId: validDocs[0].id, nom: validDocs[0].nom }];
+      }
     }
 
-    const docNames = validDocs.map(d => d.nom).join(", ");
-    const prompt = `
-DOCUMENTS: ${docNames}
-
-PREGUNTA:
-"${message}"
-
-Respon de forma clara i concisa basant-te en el context proporcionat.
-    `.trim();
-
-    // 3) Cridar LLM amb context RAG
-    const answer = await callLLM(prompt, context);
-
-    // 4) Guardar historial per carpeta
+    // 4) Guardar historial
     await addMessage({
       carpetaId,
       role: "user",
       content: message,
-      sources: [] 
+      sources: []
     });
-
-    // 5) Fonts: els documents que realment s'han fet servir (o tots els seleccionats)
-    // En aquest cas, posem tots els seleccionats com a context potential.
-    // Idealment, podríem filtrar quins chunks s'han usat realment, però RAG retorna chunks.
-    // Farem servir els chunks retornats per saber quins docs han estat útils?
-    // Per simplificar, llistem els documents seleccionats com a font.
-    // O millor: llistem els documents dels chunks trobats + fallback.
-    
-    let sources = [];
-    if (similarChunks.length > 0) {
-        // Unify document IDs from chunks
-        const usedDocIds = [...new Set(similarChunks.map(c => c.document_id))];
-        sources = validDocs.filter(d => usedDocIds.includes(d.id)).map(d => ({ documentId: d.id, nom: d.nom }));
-    } 
-    
-    // Si no em trobat chunks però hem usat fallback (1 doc), afegim aquell
-    if (sources.length === 0 && validDocs.length === 1) {
-        sources = [{ documentId: validDocs[0].id, nom: validDocs[0].nom }];
-    }
-    
-    // Si encara buit, potser l'LLM ha contestat sense context, però 'teòricament' hem consultat els docs seleccionats via RAG.
-    // Si no posem res, l'usuari no sabrà d'on surt. Si posem tots els seleccionats, pot ser enganyós si no s'ha trobat info.
-    // Deixem les sources com les que hem trobat rellevància.
 
     const assistantMsg = await addMessage({
       carpetaId,

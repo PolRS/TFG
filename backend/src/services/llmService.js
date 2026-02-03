@@ -2,10 +2,12 @@ import fetch from 'node-fetch';
 
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 
-export async function callLLM(prompt, context = "") {
-  let systemMessage = "Ets un assistent que respon preguntes.";
+export async function callLLM(prompt, context = "", options = {}) {
+  const { temperature = 0.7, model = "mistral-small-latest" } = options;
+
+  let systemMessage = "Ets un assistent útil i amable que respon en Català.";
   if (context) {
-    systemMessage += ` Fes servir NOMÉS el següent context per respondre. Si no ho saps, digues-ho.\n\nCONTEXT:\n${context}`;
+    systemMessage += `\n\nCONTEXT DELS DOCUMENTS:\n${context}\n\nINSTRUCCIONS: Si la pregunta és sobre els documents, respon basant-te PRIORITÀRIAMENT en el context proporcionat. Si no ho saps o no hi ha prou informació al context, digues-ho. Si la pregunta és una salutació o és general, respon amb cordialitat.`;
   }
 
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
@@ -15,7 +17,8 @@ export async function callLLM(prompt, context = "") {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: "mistral-small-latest",
+      model: model,
+      temperature: temperature,
       messages: [
         { role: "system", content: systemMessage },
         { role: "user", content: prompt }
@@ -124,7 +127,7 @@ export async function generateTest(documents) {
       },
       body: JSON.stringify({
         model: "mistral-medium",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "system", content: "Ets un expert generant tests educatius en JSON." }, { role: "user", content: prompt }],
         temperature: 0.2
       })
     });
