@@ -92,7 +92,7 @@ export async function consultaDocument(req, res) {
       }
     } else {
       // STANDARD RAG FLOW
-      similarChunks = await searchSimilarContext(message, 5, validDocIds);
+      similarChunks = await searchSimilarContext(message, 10, validDocIds);
 
       let context = "";
       if (similarChunks.length > 0) {
