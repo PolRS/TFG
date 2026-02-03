@@ -773,7 +773,7 @@ export default {
 
 .folder-view {
   display: grid;
-  grid-template-columns: 3fr 3fr 4fr; /* 30% 30% 40% using fraction units */
+  grid-template-columns: 2fr 4fr 4fr; /* 20% 40% 40% using fraction units */
   flex: 1;
   overflow: hidden;
 }
